@@ -157,6 +157,14 @@ function includesLooseSpacing(value, query) {
   return false;
 }
 
+function professorSearchText(row) {
+  return row.professor || "교수 미정 교수미지정 담당교수 미정";
+}
+
+function timeSearchText(row) {
+  return row.schedule || "시간 미정 시간미공개 시간 미공개";
+}
+
 function matchesCourseQuery(row, query) {
   return Number.isFinite(courseSearchScore(row, query));
 }
@@ -168,6 +176,9 @@ function courseSearchScore(row, query) {
 
   const compactName = compactNormalize(row.courseName);
   const compactCode = compactNormalize(row.courseCode);
+  const compactDepartment = compactNormalize(row.department);
+  const compactProfessor = compactNormalize(professorSearchText(row));
+  const compactTime = compactNormalize(timeSearchText(row));
   if (compactName === compactQuery) return 0;
   if (compactName.startsWith(compactQuery)) return 10 + compactName.length - compactQuery.length;
 
@@ -180,6 +191,12 @@ function courseSearchScore(row, query) {
 
   const codeIndex = compactCode.indexOf(compactQuery);
   if (codeIndex !== -1) return 1000 + codeIndex + compactCode.length / 100;
+  const departmentIndex = compactDepartment.indexOf(compactQuery);
+  if (departmentIndex !== -1) return 1300 + departmentIndex + compactDepartment.length / 100;
+  const professorIndex = compactProfessor.indexOf(compactQuery);
+  if (professorIndex !== -1) return 1500 + professorIndex + compactProfessor.length / 100;
+  const timeIndex = compactTime.indexOf(compactQuery);
+  if (timeIndex !== -1) return 1700 + timeIndex + compactTime.length / 100;
   return Number.POSITIVE_INFINITY;
 }
 
@@ -217,7 +234,7 @@ function applyFilters() {
     if (!matchesDays(row, days)) return false;
     if (!matchesTime(row, start, end)) return false;
     if (!matchesCourseQuery(row, courseQuery)) return false;
-    if (!includesLooseSpacing(row.professor, professorQuery)) return false;
+    if (!includesLooseSpacing(professorSearchText(row), professorQuery)) return false;
     return true;
   });
 
@@ -258,7 +275,7 @@ function renderResults() {
     title.textContent = row.courseName;
     const meta = document.createElement("p");
     meta.className = "courseMeta";
-    meta.textContent = `${row.category} · ${row.grade} · ${row.courseCode}-${row.section} · ${row.professor || "교수 미지정"}`;
+    meta.textContent = `${row.category} · ${row.grade} · ${row.department || "학과 미지정"} · ${row.courseCode}-${row.section} · ${row.professor || "교수 미지정"}`;
     titleWrap.append(title, meta);
 
     const add = document.createElement("button");
