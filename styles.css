@@ -457,8 +457,9 @@ input[type="checkbox"] {
 
 .courseBlock {
   position: absolute;
-  left: 6px;
-  right: 6px;
+  left: 50%;
+  width: min(154px, calc(100% - 12px));
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -501,6 +502,17 @@ input[type="checkbox"] {
 .courseBlock.isTiny {
   gap: 0;
   padding: 4px 6px;
+}
+
+.courseBlock.isMicro {
+  gap: 0;
+  padding: 0 4px;
+}
+
+.courseBlock.isMicro strong {
+  font-size: 10px;
+  line-height: 1;
+  -webkit-line-clamp: 1;
 }
 
 .courseBlock.isTiny strong {

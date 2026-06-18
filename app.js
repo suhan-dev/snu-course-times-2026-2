@@ -307,8 +307,8 @@ function renderSchedule() {
       if (!column) return;
       const el = document.createElement("button");
       el.type = "button";
-      const heightPx = Math.max(34, (block.end - block.start) * pixelsPerMinute);
-      const densityClass = heightPx < 56 ? " isTiny" : heightPx < 76 ? " isCompact" : " isFull";
+      const heightPx = (block.end - block.start) * pixelsPerMinute;
+      const densityClass = heightPx < 28 ? " isMicro" : heightPx < 56 ? " isTiny" : heightPx < 76 ? " isCompact" : " isFull";
       el.className = `courseBlock${densityClass}${conflicts.has(row.key) ? " conflict" : ""}`;
       el.style.top = `${Math.max(0, block.start - startMinute) * pixelsPerMinute}px`;
       el.style.height = `${heightPx}px`;
