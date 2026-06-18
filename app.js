@@ -161,10 +161,6 @@ function professorSearchText(row) {
   return row.professor || "교수 미정 교수미지정 담당교수 미정";
 }
 
-function timeSearchText(row) {
-  return row.schedule || "시간 미정 시간미공개 시간 미공개";
-}
-
 function matchesCourseQuery(row, query) {
   return Number.isFinite(courseSearchScore(row, query));
 }
@@ -176,9 +172,6 @@ function courseSearchScore(row, query) {
 
   const compactName = compactNormalize(row.courseName);
   const compactCode = compactNormalize(row.courseCode);
-  const compactDepartment = compactNormalize(row.department);
-  const compactProfessor = compactNormalize(professorSearchText(row));
-  const compactTime = compactNormalize(timeSearchText(row));
   if (compactName === compactQuery) return 0;
   if (compactName.startsWith(compactQuery)) return 10 + compactName.length - compactQuery.length;
 
@@ -191,12 +184,6 @@ function courseSearchScore(row, query) {
 
   const codeIndex = compactCode.indexOf(compactQuery);
   if (codeIndex !== -1) return 1000 + codeIndex + compactCode.length / 100;
-  const departmentIndex = compactDepartment.indexOf(compactQuery);
-  if (departmentIndex !== -1) return 1300 + departmentIndex + compactDepartment.length / 100;
-  const professorIndex = compactProfessor.indexOf(compactQuery);
-  if (professorIndex !== -1) return 1500 + professorIndex + compactProfessor.length / 100;
-  const timeIndex = compactTime.indexOf(compactQuery);
-  if (timeIndex !== -1) return 1700 + timeIndex + compactTime.length / 100;
   return Number.POSITIVE_INFINITY;
 }
 
@@ -229,7 +216,7 @@ function applyFilters() {
     if (!categories.has(row.category)) return false;
     if (!grades.has(row.grade)) return false;
     if (!majors.has(row.majorBinary)) return false;
-    if (department && normalize(row.department) !== department) return false;
+    if (department && !includesLooseSpacing(row.department, department)) return false;
     if (timedOnly && !row.schedule) return false;
     if (!matchesDays(row, days)) return false;
     if (!matchesTime(row, start, end)) return false;
