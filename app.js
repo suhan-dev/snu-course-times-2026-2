@@ -6,6 +6,7 @@ const startMinute = 8 * 60;
 const endMinute = 22 * 60;
 const pixelsPerMinute = 0.82;
 const colorPalette = ["#59b8a8", "#7bbcec", "#ff8e83", "#b9a7ff", "#f3b85d", "#7fc97f", "#f7a6c8", "#58a6d6"];
+const strictCompactQueries = new Set(["전자기"]);
 
 let visibleRows = [];
 let renderLimit = pageSize;
@@ -39,6 +40,7 @@ const els = {
 };
 
 const rowByKey = new Map(rows.map((row) => [row.key, row]));
+const rowOrder = new Map(rows.map((row, index) => [row.key, index]));
 const timeOptions = [
   ["", "전체"],
   ...Array.from(new Set(rows.map((row) => row.earliestStart).filter(Boolean)))
@@ -107,12 +109,62 @@ function compactNormalize(value) {
   return normalize(value).replace(/[^0-9a-z가-힣ㄱ-ㅎㅏ-ㅣ]+/g, "");
 }
 
+function orderedCharacterMatch(value, query) {
+  const compactValue = compactNormalize(value);
+  const compactQuery = compactNormalize(query);
+  if (!compactQuery) return { start: 0, span: 0 };
+
+  let fromIndex = 0;
+  let startIndex = -1;
+  let endIndex = -1;
+  for (const character of compactQuery) {
+    const foundIndex = compactValue.indexOf(character, fromIndex);
+    if (foundIndex === -1) return null;
+    if (startIndex === -1) startIndex = foundIndex;
+    endIndex = foundIndex;
+    fromIndex = foundIndex + character.length;
+  }
+  return { start: startIndex, span: endIndex - startIndex + 1 };
+}
+
+function includesOrderedCharacters(value, query) {
+  return Boolean(orderedCharacterMatch(value, query));
+}
+
 function includesLooseSpacing(value, query) {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return true;
   const normalizedValue = normalize(value);
+  const compactQuery = compactNormalize(normalizedQuery);
   if (normalizedValue.includes(normalizedQuery)) return true;
-  return compactNormalize(value).includes(compactNormalize(normalizedQuery));
+  if (compactNormalize(value).includes(compactQuery)) return true;
+  return false;
+}
+
+function matchesCourseQuery(row, query) {
+  return Number.isFinite(courseSearchScore(row, query));
+}
+
+function courseSearchScore(row, query) {
+  const normalizedQuery = normalize(query);
+  const compactQuery = compactNormalize(normalizedQuery);
+  if (!compactQuery) return 0;
+
+  const compactName = compactNormalize(row.courseName);
+  const compactCode = compactNormalize(row.courseCode);
+  if (compactName === compactQuery) return 0;
+  if (compactName.startsWith(compactQuery)) return 10 + compactName.length - compactQuery.length;
+
+  const nameIndex = compactName.indexOf(compactQuery);
+  if (nameIndex !== -1) return 30 + nameIndex + compactName.length / 100;
+  if (strictCompactQueries.has(compactQuery)) return Number.POSITIVE_INFINITY;
+
+  const orderedMatch = orderedCharacterMatch(row.courseName, normalizedQuery);
+  if (orderedMatch) return 100 + orderedMatch.start * 4 + orderedMatch.span + compactName.length / 100;
+
+  const codeIndex = compactCode.indexOf(compactQuery);
+  if (codeIndex !== -1) return 1000 + codeIndex + compactCode.length / 100;
+  return Number.POSITIVE_INFINITY;
 }
 
 function matchesDays(row, days) {
@@ -148,10 +200,17 @@ function applyFilters() {
     if (timedOnly && !row.schedule) return false;
     if (!matchesDays(row, days)) return false;
     if (!matchesTime(row, start, end)) return false;
-    if (!includesLooseSpacing(`${row.courseName} ${row.courseCode}`, courseQuery)) return false;
+    if (!matchesCourseQuery(row, courseQuery)) return false;
     if (!includesLooseSpacing(row.professor, professorQuery)) return false;
     return true;
   });
+
+  if (normalize(courseQuery)) {
+    visibleRows.sort((left, right) => {
+      const scoreDelta = courseSearchScore(left, courseQuery) - courseSearchScore(right, courseQuery);
+      return scoreDelta || (rowOrder.get(left.key) ?? 0) - (rowOrder.get(right.key) ?? 0);
+    });
+  }
 
   if (!visibleRows.some((row) => row.key === selectedKey)) {
     selectedKey = visibleRows[0]?.key || selectedKeys[0] || "";
