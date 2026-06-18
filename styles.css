@@ -457,22 +457,28 @@ input[type="checkbox"] {
 
 .courseBlock {
   position: absolute;
-  left: 50%;
-  width: min(154px, calc(100% - 12px));
-  transform: translateX(-50%);
+  left: 6px;
+  right: 6px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 2px;
-  border-radius: var(--radius);
+  appearance: none;
+  border: 1px solid rgba(33, 48, 68, 0.12);
+  border-radius: 7px;
   padding: 6px 8px;
   overflow: hidden;
   color: white;
-  box-shadow: 0 10px 20px rgba(60, 80, 105, 0.18);
+  box-shadow: none;
   font-size: 11px;
   line-height: 1.25;
   text-align: center;
   cursor: pointer;
+}
+
+.courseBlock:focus-visible {
+  outline: 2px solid rgba(45, 143, 128, 0.32);
+  outline-offset: 2px;
 }
 
 .courseBlock.conflict {

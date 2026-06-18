@@ -312,7 +312,9 @@ function renderSchedule() {
       el.className = `courseBlock${densityClass}${conflicts.has(row.key) ? " conflict" : ""}`;
       el.style.top = `${Math.max(0, block.start - startMinute) * pixelsPerMinute}px`;
       el.style.height = `${heightPx}px`;
-      el.style.background = color;
+      el.style.background = rgbaColor(color, 0.13);
+      el.style.borderColor = color;
+      el.style.color = mixWithInk(color);
       el.title = `${row.courseName} ${row.section} · ${row.professor || "교수 미지정"} · ${block.label}`;
       el.setAttribute("aria-label", `${row.courseName} ${row.section} · ${row.professor || "교수 미지정"} · ${block.label}`);
       const title = `<strong>${escapeHtml(row.courseName)}</strong>`;
@@ -425,6 +427,25 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function hexToRgb(value) {
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(value);
+  if (!match) return null;
+  return [Number.parseInt(match[1], 16), Number.parseInt(match[2], 16), Number.parseInt(match[3], 16)];
+}
+
+function rgbaColor(value, alpha) {
+  const rgb = hexToRgb(value);
+  return rgb ? `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})` : value;
+}
+
+function mixWithInk(value) {
+  const rgb = hexToRgb(value);
+  if (!rgb) return value;
+  const ink = [33, 48, 68];
+  const mixed = rgb.map((channel, index) => Math.round(channel * 0.68 + ink[index] * 0.32));
+  return `rgb(${mixed[0]}, ${mixed[1]}, ${mixed[2]})`;
 }
 
 setup();
