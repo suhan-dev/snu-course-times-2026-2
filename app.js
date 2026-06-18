@@ -37,6 +37,7 @@ const els = {
   selectedCourses: document.querySelector("#selectedCourses"),
   detailTitle: document.querySelector("#detailTitle"),
   detailList: document.querySelector("#detailList"),
+  lastUpdated: document.querySelector("#lastUpdatedText"),
 };
 
 const rowByKey = new Map(rows.map((row) => [row.key, row]));
@@ -49,6 +50,8 @@ const timeOptions = [
 ];
 
 function setup() {
+  renderLastUpdated();
+
   rawData.meta.departments.forEach((dept) => {
     const option = document.createElement("option");
     option.value = dept;
@@ -82,6 +85,19 @@ function setup() {
 
   applyFilters();
   renderSchedule();
+}
+
+function renderLastUpdated() {
+  if (!els.lastUpdated) return;
+  const fetchedAt = rawData.meta?.fetchedAt || "";
+  els.lastUpdated.textContent = fetchedAt ? `마지막 업데이트 ${formatUpdatedAt(fetchedAt)}` : "업데이트 시간 확인 중";
+}
+
+function formatUpdatedAt(value) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+  if (!match) return value;
+  const [, year, month, day, hour, minute] = match;
+  return `${year}.${month}.${day} ${hour}:${minute}`;
 }
 
 function loadSelectedKeys() {

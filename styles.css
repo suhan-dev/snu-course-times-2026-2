@@ -82,6 +82,21 @@ h1 {
   letter-spacing: 0;
 }
 
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lastUpdatedBadge {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 h2 {
   font-size: 18px;
   line-height: 1.25;
