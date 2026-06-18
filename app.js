@@ -307,11 +307,17 @@ function renderSchedule() {
       if (!column) return;
       const el = document.createElement("button");
       el.type = "button";
-      el.className = `courseBlock${conflicts.has(row.key) ? " conflict" : ""}`;
+      const heightPx = Math.max(34, (block.end - block.start) * pixelsPerMinute);
+      const densityClass = heightPx < 56 ? " isTiny" : heightPx < 76 ? " isCompact" : " isFull";
+      el.className = `courseBlock${densityClass}${conflicts.has(row.key) ? " conflict" : ""}`;
       el.style.top = `${Math.max(0, block.start - startMinute) * pixelsPerMinute}px`;
-      el.style.height = `${Math.max(28, (block.end - block.start) * pixelsPerMinute)}px`;
+      el.style.height = `${heightPx}px`;
       el.style.background = color;
-      el.innerHTML = `<strong>${escapeHtml(row.courseName)}</strong><span>${escapeHtml(row.section)} · ${escapeHtml(row.professor || "교수 미지정")}</span><span>${escapeHtml(block.label)}</span>`;
+      el.title = `${row.courseName} ${row.section} · ${row.professor || "교수 미지정"} · ${block.label}`;
+      const title = `<strong>${escapeHtml(row.courseName)}</strong>`;
+      const meta = `<span>${escapeHtml(row.section)} · ${escapeHtml(row.professor || "교수 미지정")}</span>`;
+      const time = `<span>${escapeHtml(block.label)}</span>`;
+      el.innerHTML = heightPx < 56 ? title : heightPx < 76 ? `${title}${time}` : `${title}${meta}${time}`;
       el.addEventListener("click", () => {
         selectedKey = row.key;
         renderResults();
