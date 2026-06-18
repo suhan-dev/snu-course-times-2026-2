@@ -103,6 +103,18 @@ function normalize(value) {
   return (value || "").toLocaleLowerCase("ko-KR").trim();
 }
 
+function compactNormalize(value) {
+  return normalize(value).replace(/[^0-9a-z가-힣ㄱ-ㅎㅏ-ㅣ]+/g, "");
+}
+
+function includesLooseSpacing(value, query) {
+  const normalizedQuery = normalize(query);
+  if (!normalizedQuery) return true;
+  const normalizedValue = normalize(value);
+  if (normalizedValue.includes(normalizedQuery)) return true;
+  return compactNormalize(value).includes(compactNormalize(normalizedQuery));
+}
+
 function matchesDays(row, days) {
   if (!days.size) return true;
   return row.dayList.some((day) => days.has(day));
@@ -121,8 +133,8 @@ function applyFilters() {
   const grades = checkedValues("grade");
   const majors = checkedValues("major");
   const days = checkedValues("day");
-  const courseQuery = normalize(els.courseSearch.value);
-  const professorQuery = normalize(els.professorSearch.value);
+  const courseQuery = els.courseSearch.value;
+  const professorQuery = els.professorSearch.value;
   const department = normalize(els.department.value);
   const start = els.startTime.value;
   const end = els.endTime.value;
@@ -136,8 +148,8 @@ function applyFilters() {
     if (timedOnly && !row.schedule) return false;
     if (!matchesDays(row, days)) return false;
     if (!matchesTime(row, start, end)) return false;
-    if (courseQuery && !`${row.courseName} ${row.courseCode}`.toLocaleLowerCase("ko-KR").includes(courseQuery)) return false;
-    if (professorQuery && !normalize(row.professor).includes(professorQuery)) return false;
+    if (!includesLooseSpacing(`${row.courseName} ${row.courseCode}`, courseQuery)) return false;
+    if (!includesLooseSpacing(row.professor, professorQuery)) return false;
     return true;
   });
 
@@ -317,7 +329,7 @@ function renderSchedule() {
       el.style.color = mixWithInk(color);
       el.title = `${row.courseName} ${row.section} · ${row.professor || "교수 미지정"} · ${block.label}`;
       el.setAttribute("aria-label", `${row.courseName} ${row.section} · ${row.professor || "교수 미지정"} · ${block.label}`);
-      const title = `<strong>${escapeHtml(row.courseName)}</strong>`;
+      const title = `<strong>${escapeHtml(row.courseName)}</strong><span class="professorName">${escapeHtml(row.professor || "교수 미지정")}</span>`;
       el.innerHTML = title;
       el.addEventListener("click", () => {
         selectedKey = row.key;

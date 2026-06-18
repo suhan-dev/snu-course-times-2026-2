@@ -505,6 +505,12 @@ input[type="checkbox"] {
   white-space: nowrap;
 }
 
+.courseBlock .professorName {
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.08;
+}
+
 .courseBlock.isTiny {
   gap: 0;
   padding: 4px 6px;
@@ -521,9 +527,19 @@ input[type="checkbox"] {
   -webkit-line-clamp: 1;
 }
 
+.courseBlock.isMicro .professorName {
+  display: none;
+}
+
 .courseBlock.isTiny strong {
   font-size: 11px;
   line-height: 1.12;
+  -webkit-line-clamp: 1;
+}
+
+.courseBlock.isTiny .professorName {
+  font-size: 9px;
+  line-height: 1.05;
 }
 
 .courseBlock.isCompact {
@@ -662,6 +678,10 @@ input[type="checkbox"] {
 }
 
 @media (max-width: 560px) {
+  body {
+    font-size: 13px;
+  }
+
   .filterGrid,
   .inlineControls,
   .statStrip {
@@ -674,5 +694,61 @@ input[type="checkbox"] {
 
   .appShell {
     padding-inline: 10px;
+  }
+
+  .calendarPanel {
+    padding: 10px;
+  }
+
+  .calendarToolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .timetable {
+    grid-template-columns: 34px repeat(6, minmax(0, 1fr));
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .cornerCell,
+  .dayHeader {
+    min-height: 34px;
+    font-size: 11px;
+  }
+
+  .timeAxis {
+    width: 34px;
+  }
+
+  .timeLabel {
+    right: 4px;
+    font-size: 9px;
+  }
+
+  .dayColumns {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    min-width: 0;
+  }
+
+  .courseBlock {
+    left: 2px;
+    right: 2px;
+    border-radius: 5px;
+    padding: 3px 2px;
+  }
+
+  .courseBlock strong {
+    font-size: 9px;
+    line-height: 1.05;
+  }
+
+  .courseBlock .professorName {
+    font-size: 8px;
+    line-height: 1.05;
+  }
+
+  .courseBlock.isTiny {
+    padding: 2px;
   }
 }
