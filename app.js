@@ -4,7 +4,7 @@ const pageSize = 80;
 const dayLabels = ["월", "화", "수", "목", "금", "토"];
 const startMinute = 8 * 60;
 const endMinute = 22 * 60;
-const pixelsPerMinute = 0.82;
+const pixelsPerMinute = 0.49;
 const colorPalette = ["#59b8a8", "#7bbcec", "#ff8e83", "#b9a7ff", "#f3b85d", "#7fc97f", "#f7a6c8", "#58a6d6"];
 const strictCompactQueries = new Set(["전자기"]);
 
