@@ -149,24 +149,14 @@ h3 {
 
 .appShell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: clamp(210px, 24vw, 360px) minmax(260px, 1fr) clamp(190px, 20vw, 320px);
+  grid-template-rows: minmax(0, 1fr);
+  align-content: start;
+  align-items: stretch;
   gap: 12px;
   width: min(1820px, 100%);
   margin: 0 auto;
   padding: 0 clamp(12px, 2vw, 26px) 18px;
-}
-
-.searchPanel {
-  grid-column: 1 / -1;
-}
-
-.calendarPanel {
-  grid-column: 1;
-}
-
-.schedulePanel {
-  grid-column: 2;
 }
 
 .searchPanel,
@@ -183,28 +173,7 @@ h3 {
 }
 
 .searchPanel {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
-}
-
-.searchPanel > .panelBlock:first-child {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: end;
-  column-gap: 10px;
-}
-
-.searchPanel > .panelBlock:first-child .panelTitle,
-.searchPanel > .panelBlock:first-child .filterGrid {
-  grid-column: 1 / -1;
-}
-
-.searchPanel > .panelBlock:first-child .inlineControls {
-  grid-column: 1 / 3;
-}
-
-.searchPanel > .panelBlock:first-child #resetButton {
-  align-self: end;
+  min-height: 0;
 }
 
 .panelBlock,
@@ -278,7 +247,7 @@ select:focus {
 
 .filterGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
@@ -308,7 +277,7 @@ input[type="checkbox"] {
 
 .inlineControls {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.35fr;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 8px;
 }
@@ -412,9 +381,16 @@ input[type="checkbox"] {
   margin-bottom: 10px;
 }
 
+.calendarActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .statStrip {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .statStrip div {
@@ -436,6 +412,11 @@ input[type="checkbox"] {
   font-size: 20px;
   line-height: 1.05;
   margin-top: 3px;
+}
+
+.compactButton {
+  min-height: 52px;
+  white-space: nowrap;
 }
 
 .timetable {
@@ -694,7 +675,7 @@ input[type="checkbox"] {
   font-weight: 900;
 }
 
-@media (min-width: 1181px) and (min-height: 860px) {
+@media (min-width: 760px) and (min-height: 760px) {
   html,
   body {
     height: 100dvh;
@@ -702,41 +683,68 @@ input[type="checkbox"] {
   }
 
   .appShell {
-    height: calc(100dvh - 68px);
-  }
-
-  .calendarPanel {
+    height: calc(100dvh - 66px);
     overflow: hidden;
   }
 
+  .calendarPanel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .searchPanel,
+  .courseResults,
   .schedulePanel {
     overflow: auto;
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1180px) and (min-width: 760px) {
   .appShell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(190px, 0.9fr) minmax(260px, 1.35fr) minmax(180px, 0.85fr);
   }
 
-  .calendarPanel,
-  .schedulePanel {
-    grid-column: 1;
+  .calendarToolbar {
+    gap: 6px;
   }
 
-  .schedulePanel {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  .calendarToolbar h2 {
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  .calendarToolbar .eyebrow {
+    font-size: 10px;
+  }
+
+  .statStrip {
+    gap: 4px;
+  }
+
+  .statStrip div {
+    min-width: 48px;
+    padding: 5px 6px;
+  }
+
+  .statStrip span {
+    font-size: 9px;
+  }
+
+  .statStrip strong {
+    font-size: 17px;
+  }
+
+  .compactButton {
+    min-height: 42px;
+    padding: 0 7px;
+    font-size: 12px;
   }
 }
 
 @media (min-width: 1181px) and (max-width: 1440px) {
   .appShell {
-    grid-template-columns: minmax(0, 1fr) 306px;
-  }
-
-  .searchPanel {
-    grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+    grid-template-columns: clamp(250px, 23vw, 330px) minmax(360px, 1fr) clamp(220px, 20vw, 300px);
   }
 
   .statStrip div {
@@ -763,31 +771,6 @@ input[type="checkbox"] {
   .primaryButton,
   .ghostButton {
     justify-content: center;
-  }
-
-  .appShell,
-  .schedulePanel {
-    grid-template-columns: 1fr;
-  }
-
-  .appShell {
-    display: grid;
-    height: auto;
-  }
-
-  .searchPanel,
-  .calendarPanel,
-  .schedulePanel {
-    grid-column: 1;
-  }
-
-  .searchPanel,
-  .searchPanel > .panelBlock:first-child {
-    grid-template-columns: 1fr;
-  }
-
-  .searchPanel > .panelBlock:first-child .inlineControls {
-    grid-column: 1;
   }
 
   .courseResults {
@@ -880,5 +863,62 @@ input[type="checkbox"] {
 
   .courseBlock.isTiny {
     padding: 2px;
+  }
+}
+
+@media (max-width: 759px) {
+  html,
+  body {
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .appShell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  .searchPanel,
+  .calendarPanel,
+  .schedulePanel {
+    grid-column: 1;
+  }
+
+  .searchPanel,
+  .schedulePanel {
+    overflow: visible;
+  }
+
+  .courseResults {
+    max-height: 420px;
+  }
+
+  .calendarPanel {
+    overflow: visible;
+  }
+}
+
+@media (min-width: 760px) and (max-width: 980px) {
+  body {
+    overflow: hidden;
+  }
+
+  .appHeader {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .headerActions,
+  .primaryButton,
+  .ghostButton {
+    width: auto;
+  }
+
+  .primaryButton,
+  .ghostButton {
+    justify-content: center;
   }
 }

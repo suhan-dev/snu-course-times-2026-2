@@ -23,10 +23,9 @@ const els = {
   departmentList: document.querySelector("#departmentList"),
   startTime: document.querySelector("#startTime"),
   endTime: document.querySelector("#endTime"),
-  timedOnly: document.querySelector("#timedOnly"),
-  reset: document.querySelector("#resetButton"),
   more: document.querySelector("#moreButton"),
   clearSchedule: document.querySelector("#clearScheduleButton"),
+  saveImage: document.querySelector("#saveImageButton"),
   timeAxis: document.querySelector("#timeAxis"),
   dayColumns: document.querySelector("#dayColumns"),
   selectedCount: document.querySelector("#selectedCount"),
@@ -72,11 +71,11 @@ function setup() {
     });
   });
 
-  els.reset.addEventListener("click", resetFilters);
   els.more.addEventListener("click", () => {
     renderLimit += pageSize;
     renderResults();
   });
+  els.saveImage.addEventListener("click", downloadTimetableImage);
   els.clearSchedule.addEventListener("click", () => {
     selectedKeys = [];
     persistSelectedKeys();
@@ -210,14 +209,12 @@ function applyFilters() {
   const department = normalize(els.department.value);
   const start = els.startTime.value;
   const end = els.endTime.value;
-  const timedOnly = els.timedOnly.checked;
 
   visibleRows = rows.filter((row) => {
     if (!categories.has(row.category)) return false;
     if (!grades.has(row.grade)) return false;
     if (!majors.has(row.majorBinary)) return false;
     if (department && !includesLooseSpacing(row.department, department)) return false;
-    if (timedOnly && !row.schedule) return false;
     if (!matchesDays(row, days)) return false;
     if (!matchesTime(row, start, end)) return false;
     if (!matchesCourseQuery(row, courseQuery)) return false;
@@ -499,19 +496,6 @@ function renderDetail(row) {
   );
 }
 
-function resetFilters() {
-  document.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-    input.checked = input.name !== "day" && input.id !== "timedOnly";
-  });
-  els.courseSearch.value = "";
-  els.professorSearch.value = "";
-  els.department.value = "";
-  els.startTime.value = "";
-  els.endTime.value = "";
-  renderLimit = pageSize;
-  applyFilters();
-}
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -537,6 +521,154 @@ function mixWithInk(value) {
   const ink = [33, 48, 68];
   const mixed = rgb.map((channel, index) => Math.round(channel * 0.68 + ink[index] * 0.32));
   return `rgb(${mixed[0]}, ${mixed[1]}, ${mixed[2]})`;
+}
+
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+  words.forEach((word) => {
+    const trial = current ? `${current} ${word}` : word;
+    if (ctx.measureText(trial).width <= maxWidth) {
+      current = trial;
+      return;
+    }
+    if (current) lines.push(current);
+    current = word;
+  });
+  if (current) lines.push(current);
+
+  const output = lines.slice(0, maxLines);
+  output.forEach((line, index) => {
+    const finalLine = index === maxLines - 1 && lines.length > maxLines ? `${line.replace(/.{2}$/, "")}...` : line;
+    ctx.fillText(finalLine, x, y + index * lineHeight);
+  });
+  return output.length * lineHeight;
+}
+
+function downloadTimetableImage() {
+  const items = selectedRows();
+  const scale = 2;
+  const width = 1440;
+  const height = 900;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = "#f8fbff";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = "#213044";
+  ctx.font = "800 34px system-ui, -apple-system, sans-serif";
+  ctx.fillText("2026-2 SNU 시간표", 42, 56);
+  ctx.fillStyle = "#6d7a8d";
+  ctx.font = "700 16px system-ui, -apple-system, sans-serif";
+  ctx.fillText(`과목 ${items.length}개 · 학점 ${els.creditCount.textContent} · 마지막 업데이트 ${formatUpdatedAt(rawData.meta?.fetchedAt || "")}`, 42, 84);
+
+  const tableX = 42;
+  const tableY = 118;
+  const tableW = width - 84;
+  const tableH = height - 160;
+  const timeW = 74;
+  const headerH = 44;
+  const dayW = (tableW - timeW) / dayLabels.length;
+  const minuteScale = (tableH - headerH) / (endMinute - startMinute);
+
+  ctx.fillStyle = "#ffffff";
+  drawRoundedRect(ctx, tableX, tableY, tableW, tableH, 12);
+  ctx.fill();
+  ctx.strokeStyle = "#dce7ef";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "#f8fcff";
+  ctx.fillRect(tableX + 1, tableY + 1, tableW - 2, headerH);
+  ctx.strokeStyle = "#dce7ef";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(tableX, tableY + headerH);
+  ctx.lineTo(tableX + tableW, tableY + headerH);
+  ctx.stroke();
+
+  ctx.fillStyle = "#213044";
+  ctx.font = "800 15px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("시간", tableX + timeW / 2, tableY + headerH / 2);
+  dayLabels.forEach((day, index) => {
+    ctx.fillText(day, tableX + timeW + dayW * index + dayW / 2, tableY + headerH / 2);
+  });
+
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "right";
+  ctx.font = "700 14px system-ui, -apple-system, sans-serif";
+  for (let minute = startMinute; minute <= endMinute; minute += 60) {
+    const y = tableY + headerH + (minute - startMinute) * minuteScale;
+    ctx.strokeStyle = "#e5eef5";
+    ctx.beginPath();
+    ctx.moveTo(tableX + timeW, y);
+    ctx.lineTo(tableX + tableW, y);
+    ctx.stroke();
+    ctx.fillStyle = "#6d7a8d";
+    ctx.fillText(formatHour(minute), tableX + timeW - 12, Math.min(tableY + tableH - 8, y + 5));
+  }
+
+  ctx.strokeStyle = "#edf3f7";
+  for (let index = 0; index <= dayLabels.length; index += 1) {
+    const x = tableX + timeW + dayW * index;
+    ctx.beginPath();
+    ctx.moveTo(x, tableY + headerH);
+    ctx.lineTo(x, tableY + tableH);
+    ctx.stroke();
+  }
+
+  const conflicts = conflictKeys(items);
+  items.forEach((row, index) => {
+    const color = colorPalette[index % colorPalette.length];
+    const rgb = hexToRgb(color) || [89, 184, 168];
+    parseBlocks(row).forEach((block) => {
+      const dayIndex = dayLabels.indexOf(block.day);
+      if (dayIndex === -1) return;
+      const x = tableX + timeW + dayW * dayIndex + 8;
+      const y = tableY + headerH + Math.max(0, block.start - startMinute) * minuteScale;
+      const w = dayW - 16;
+      const h = Math.max(22, (block.end - block.start) * minuteScale);
+      ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.16)`;
+      drawRoundedRect(ctx, x, y + 4, w, h - 8, 9);
+      ctx.fill();
+      ctx.strokeStyle = conflicts.has(row.key) ? "#ff6460" : color;
+      ctx.lineWidth = conflicts.has(row.key) ? 3 : 2;
+      ctx.stroke();
+      ctx.fillStyle = mixWithInk(color);
+      ctx.textAlign = "center";
+      ctx.font = "800 15px system-ui, -apple-system, sans-serif";
+      const textY = y + Math.max(22, h / 2 - 9);
+      wrapCanvasText(ctx, row.courseName, x + w / 2, textY, w - 18, 18, h < 44 ? 1 : 2);
+      if (h >= 44) {
+        ctx.font = "700 12px system-ui, -apple-system, sans-serif";
+        ctx.fillText(row.professor || "교수 미지정", x + w / 2, Math.min(y + h - 13, textY + 36));
+      }
+    });
+  });
+
+  const link = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  link.download = `snu-2026-2-timetable-${stamp}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 }
 
 setup();
