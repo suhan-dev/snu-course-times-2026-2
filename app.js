@@ -260,6 +260,7 @@ function renderResults() {
     const meta = document.createElement("p");
     meta.className = "courseMeta";
     meta.textContent = `${row.category} · ${row.grade} · ${row.department || "학과 미지정"} · ${row.courseCode}-${row.section} · ${row.professor || "교수 미지정"}`;
+    meta.title = meta.textContent;
     titleWrap.append(title, meta);
 
     const add = document.createElement("button");
@@ -278,6 +279,7 @@ function renderResults() {
     const time = document.createElement("p");
     time.className = "courseTime";
     time.textContent = row.schedule || "시간 미공개";
+    time.title = time.textContent;
 
     card.append(header, time);
     card.addEventListener("click", () => {

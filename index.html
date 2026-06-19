@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>2026-2 SNU 시간표 빌더</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2359b8a8'/%3E%3Cpath d='M8 8h16v4H8zm0 6h7v10H8zm9 0h7v10h-7z' fill='%23ffffff'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles.css?v=20260619-fixed-three-column" />
+    <link rel="stylesheet" href="./styles.css?v=20260619-compact-search" />
   </head>
   <body>
     <header class="appHeader">
@@ -24,27 +24,29 @@
 
     <main class="appShell">
       <aside class="searchPanel" aria-label="과목 검색">
-        <section class="panelBlock">
+        <section class="panelBlock searchControls">
           <div class="panelTitle">
             <h2>과목 찾기</h2>
             <span id="resultNote">0개</span>
           </div>
 
-          <label class="field">
-            <span>과목명 검색</span>
-            <input id="courseSearchInput" type="search" placeholder="예: 컴퓨팅, 글쓰기, 미적분" autocomplete="off" />
-          </label>
+          <div class="searchFields">
+            <label class="field courseNameField">
+              <span>과목명 검색</span>
+              <input id="courseSearchInput" type="search" placeholder="예: 컴퓨팅, 글쓰기, 미적분" autocomplete="off" />
+            </label>
 
-          <label class="field">
-            <span>교수명 검색</span>
-            <input id="professorSearchInput" type="search" placeholder="예: 김현주, 변해선" autocomplete="off" />
-          </label>
+            <label class="field">
+              <span>교수명 검색</span>
+              <input id="professorSearchInput" type="search" placeholder="예: 김현주, 변해선" autocomplete="off" />
+            </label>
 
-          <label class="field">
-            <span>학과</span>
-            <input id="departmentInput" list="departmentList" placeholder="전체" autocomplete="off" />
-            <datalist id="departmentList"></datalist>
-          </label>
+            <label class="field">
+              <span>학과</span>
+              <input id="departmentInput" list="departmentList" placeholder="전체" autocomplete="off" />
+              <datalist id="departmentList"></datalist>
+            </label>
+          </div>
 
           <div class="filterGrid">
             <fieldset class="checkgroup">
@@ -153,6 +155,6 @@
     </main>
 
     <script src="./data/courses-data.js?v=20260618-department-filter"></script>
-    <script src="./app.js?v=20260619-fixed-three-column"></script>
+    <script src="./app.js?v=20260619-compact-search"></script>
   </body>
 </html>
