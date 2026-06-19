@@ -35,32 +35,32 @@
 }
 
 :root[data-theme="dark"] {
-  --ink: #eaf2ff;
-  --muted: #9fb0c8;
-  --line: #26384c;
-  --bg: #08111f;
-  --bg-gradient: linear-gradient(180deg, rgba(18, 43, 65, 0.92) 0, rgba(8, 17, 31, 0.14) 300px);
-  --panel: #0f1d2f;
-  --panel-tint: rgba(15, 29, 47, 0.96);
-  --soft: #13263a;
-  --card-bg: #101f32;
-  --input-bg: #0b1828;
-  --input-border: #2c4358;
-  --table-bg: #0c1828;
-  --table-head: #101f32;
-  --axis-bg: #0e1b2c;
-  --grid-line: #203247;
-  --hour-line: #283d53;
-  --selected-bg: #0f302f;
-  --button-soft: #14283c;
-  --danger-bg: #351b22;
-  --danger-ink: #ffaaa4;
-  --danger-line: #684049;
-  --badge-bg: #cfa85a;
-  --mint: #6bd3c2;
-  --mint-deep: #89e7d8;
-  --sky-soft: #152b42;
-  --shadow: 0 20px 58px rgba(0, 0, 0, 0.44);
+  --ink: #d8e0ec;
+  --muted: #8f9caf;
+  --line: #2a3545;
+  --bg: #101722;
+  --bg-gradient: linear-gradient(180deg, rgba(28, 42, 57, 0.72) 0, rgba(16, 23, 34, 0.2) 300px);
+  --panel: #151e2a;
+  --panel-tint: rgba(21, 30, 42, 0.96);
+  --soft: #1a2736;
+  --card-bg: #172232;
+  --input-bg: #111a26;
+  --input-border: #334052;
+  --table-bg: #111a26;
+  --table-head: #172232;
+  --axis-bg: #151f2d;
+  --grid-line: #273342;
+  --hour-line: #303b4b;
+  --selected-bg: #19302f;
+  --button-soft: #192737;
+  --danger-bg: #382327;
+  --danger-ink: #e6a09b;
+  --danger-line: #594145;
+  --badge-bg: #b89455;
+  --mint: #5fb5a8;
+  --mint-deep: #9acbc4;
+  --sky-soft: #1b2c3e;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
   color-scheme: dark;
 }
 
@@ -207,8 +207,18 @@ h3 {
 }
 
 :root[data-theme="dark"] .themeSwitchDot {
-  background: radial-gradient(circle at 65% 34%, #203147 0 20%, transparent 22%), linear-gradient(135deg, #8be7d8 0%, #5aa8ff 100%);
-  box-shadow: 0 0 18px rgba(107, 211, 194, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.36);
+  background: radial-gradient(circle at 65% 34%, #2b3544 0 20%, transparent 22%), linear-gradient(135deg, #9acbc4 0%, #7da6c9 100%);
+  box-shadow: 0 0 10px rgba(154, 203, 196, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+:root[data-theme="dark"] .primaryButton,
+:root[data-theme="dark"] .addButton {
+  color: #0d1721;
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .courseBlock {
+  filter: saturate(0.82) brightness(0.96);
 }
 
 .appShell {
