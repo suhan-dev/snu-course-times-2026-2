@@ -4,14 +4,18 @@ const pageSize = 80;
 const dayLabels = ["월", "화", "수", "목", "금", "토"];
 const startMinute = 8 * 60;
 const endMinute = 22 * 60;
-const pixelsPerMinute = 0.49;
+const fallbackPixelsPerMinute = 0.49;
+const scheduleStorageKey = "snuScheduleState:2026-2";
+const legacyScheduleStorageKey = "snuScheduleKeys";
+const themeStorageKey = "snuTheme:2026-2";
 const colorPalette = ["#59b8a8", "#7bbcec", "#ff8e83", "#b9a7ff", "#f3b85d", "#7fc97f", "#f7a6c8", "#58a6d6"];
 const strictCompactQueries = new Set(["전자기"]);
 
 let visibleRows = [];
 let renderLimit = pageSize;
 let selectedKey = "";
-let selectedKeys = loadSelectedKeys();
+let selectedKeys = [];
+let resizeTimer;
 
 const els = {
   visibleCount: document.querySelector("#visibleCount"),
@@ -26,6 +30,8 @@ const els = {
   more: document.querySelector("#moreButton"),
   clearSchedule: document.querySelector("#clearScheduleButton"),
   saveImage: document.querySelector("#saveImageButton"),
+  themeToggle: document.querySelector("#themeToggleButton"),
+  themeToggleText: document.querySelector("#themeToggleText"),
   timeAxis: document.querySelector("#timeAxis"),
   dayColumns: document.querySelector("#dayColumns"),
   selectedCount: document.querySelector("#selectedCount"),
@@ -41,6 +47,9 @@ const els = {
 
 const rowByKey = new Map(rows.map((row) => [row.key, row]));
 const rowOrder = new Map(rows.map((row, index) => [row.key, index]));
+const rowKeyByStableId = new Map(rows.map((row) => [stableCourseId(row), row.key]));
+selectedKeys = loadSelectedKeys();
+selectedKey = selectedKeys[0] || "";
 const timeOptions = [
   ["", "전체"],
   ...Array.from(new Set(rows.map((row) => row.earliestStart).filter(Boolean)))
@@ -49,7 +58,10 @@ const timeOptions = [
 ];
 
 function setup() {
+  applyTheme(loadTheme());
+  requestDurableStorage();
   renderLastUpdated();
+  persistScheduleState();
 
   rawData.meta.departments.forEach((dept) => {
     const option = document.createElement("option");
@@ -76,14 +88,33 @@ function setup() {
     renderResults();
   });
   els.saveImage.addEventListener("click", downloadTimetableImage);
+  els.themeToggle.addEventListener("click", () => {
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+  });
   els.clearSchedule.addEventListener("click", () => {
     selectedKeys = [];
-    persistSelectedKeys();
+    selectedKey = visibleRows[0]?.key || "";
+    persistScheduleState();
     renderAll();
+  });
+  window.addEventListener("pagehide", persistScheduleState);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") persistScheduleState();
+  });
+  window.addEventListener("resize", () => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => {
+      buildTimeAxis();
+      renderSchedule();
+    }, 80);
   });
 
   applyFilters();
   renderSchedule();
+  window.requestAnimationFrame(() => {
+    buildTimeAxis();
+    renderSchedule();
+  });
 }
 
 function renderLastUpdated() {
@@ -99,17 +130,98 @@ function formatUpdatedAt(value) {
   return `${year}.${month}.${day} ${hour}:${minute}`;
 }
 
+async function requestDurableStorage() {
+  try {
+    if (navigator.storage?.persist) await navigator.storage.persist();
+  } catch {
+    // Storage persistence is a browser hint; saving still works without it.
+  }
+}
+
+function loadTheme() {
+  try {
+    return localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light";
+  } catch {
+    return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  }
+}
+
+function applyTheme(theme, persist = false) {
+  const isDark = theme === "dark";
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  els.themeToggle?.setAttribute("aria-pressed", String(isDark));
+  if (els.themeToggleText) els.themeToggleText.textContent = isDark ? "라이트모드" : "다크모드";
+  try {
+    if (persist) localStorage.setItem(themeStorageKey, isDark ? "dark" : "light");
+  } catch {}
+}
+
+function stableCourseId(row) {
+  return [row.category, row.courseCode, row.section].map((part) => String(part || "")).join("|");
+}
+
+function uniqueValidKeys(keys) {
+  const seen = new Set();
+  return keys.filter((key) => {
+    if (!rowByKey.has(key) || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function keysFromStableIds(ids) {
+  return uniqueValidKeys(ids.map((id) => rowKeyByStableId.get(id)).filter(Boolean));
+}
+
 function loadSelectedKeys() {
   try {
-    const parsed = JSON.parse(localStorage.getItem("snuScheduleKeys") || "[]");
-    return Array.isArray(parsed) ? parsed.filter((key) => typeof key === "string") : [];
+    const parsed = JSON.parse(localStorage.getItem(scheduleStorageKey) || "null");
+    if (Array.isArray(parsed?.selectedStableIds)) {
+      const keys = keysFromStableIds(parsed.selectedStableIds);
+      if (keys.length) return keys;
+    }
+    if (Array.isArray(parsed?.selectedKeys)) {
+      const keys = uniqueValidKeys(parsed.selectedKeys);
+      if (keys.length) return keys;
+    }
+    if (Array.isArray(parsed)) {
+      const keys = uniqueValidKeys(parsed);
+      if (keys.length) return keys;
+    }
+  } catch {
+    return loadLegacySelectedKeys();
+  }
+  return loadLegacySelectedKeys();
+}
+
+function loadLegacySelectedKeys() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(legacyScheduleStorageKey) || "[]");
+    return Array.isArray(parsed) ? uniqueValidKeys(parsed.filter((key) => typeof key === "string")) : [];
   } catch {
     return [];
   }
 }
 
-function persistSelectedKeys() {
-  localStorage.setItem("snuScheduleKeys", JSON.stringify(selectedKeys));
+function persistScheduleState() {
+  const validKeys = uniqueValidKeys(selectedKeys);
+  const selectedRow = validKeys.includes(selectedKey) ? rowByKey.get(selectedKey) : null;
+  selectedKeys = validKeys;
+  const state = {
+    version: 2,
+    term: rawData.meta?.term || "2026 2학기",
+    updatedAt: new Date().toISOString(),
+    selectedKeys: validKeys,
+    selectedStableIds: validKeys.map((key) => stableCourseId(rowByKey.get(key))),
+    selectedKey: selectedRow ? selectedKey : validKeys[0] || "",
+    selectedStableId: selectedRow ? stableCourseId(selectedRow) : "",
+  };
+  try {
+    localStorage.setItem(scheduleStorageKey, JSON.stringify(state));
+    localStorage.setItem(legacyScheduleStorageKey, JSON.stringify(validKeys));
+  } catch {
+    // Private/incognito storage can reject writes; the in-memory schedule still works.
+  }
 }
 
 function checkedValues(name) {
@@ -265,13 +377,14 @@ function renderResults() {
 
     const add = document.createElement("button");
     const alreadyAdded = selectedKeys.includes(row.key);
-    add.className = `addButton${alreadyAdded ? " isAdded" : ""}`;
+    add.className = `addButton${alreadyAdded ? " isRemove" : ""}`;
     add.type = "button";
-    add.textContent = alreadyAdded ? "추가됨" : "추가";
-    add.disabled = alreadyAdded;
+    add.textContent = alreadyAdded ? "삭제" : "추가";
+    add.setAttribute("aria-label", alreadyAdded ? `${row.courseName} 삭제` : `${row.courseName} 추가`);
     add.addEventListener("click", (event) => {
       event.stopPropagation();
-      addCourse(row.key);
+      if (alreadyAdded) removeCourse(row.key);
+      else addCourse(row.key);
     });
 
     header.append(titleWrap, add);
@@ -300,7 +413,7 @@ function addCourse(key) {
   if (!selectedKeys.includes(key)) {
     selectedKeys.push(key);
     selectedKey = key;
-    persistSelectedKeys();
+    persistScheduleState();
     renderAll();
   }
 }
@@ -308,7 +421,7 @@ function addCourse(key) {
 function removeCourse(key) {
   selectedKeys = selectedKeys.filter((item) => item !== key);
   if (selectedKey === key) selectedKey = selectedKeys[0] || visibleRows[0]?.key || "";
-  persistSelectedKeys();
+  persistScheduleState();
   renderAll();
 }
 
@@ -320,6 +433,14 @@ function parseMinute(value) {
 
 function formatHour(minute) {
   return `${String(Math.floor(minute / 60)).padStart(2, "0")}:00`;
+}
+
+function currentPixelsPerMinute() {
+  const timelineHeight = els.dayColumns?.getBoundingClientRect().height || els.timeAxis?.getBoundingClientRect().height || 0;
+  const minutes = endMinute - startMinute;
+  const pixelsPerMinute = timelineHeight > 0 ? timelineHeight / minutes : fallbackPixelsPerMinute;
+  document.documentElement.style.setProperty("--minute-px", `${pixelsPerMinute}px`);
+  return pixelsPerMinute;
 }
 
 function parseBlocks(row) {
@@ -368,6 +489,7 @@ function conflictKeys(items) {
 }
 
 function buildTimeAxis() {
+  const pixelsPerMinute = currentPixelsPerMinute();
   const frag = document.createDocumentFragment();
   for (let minute = startMinute; minute <= endMinute; minute += 60) {
     const label = document.createElement("div");
@@ -380,6 +502,7 @@ function buildTimeAxis() {
 }
 
 function renderSchedule() {
+  const pixelsPerMinute = currentPixelsPerMinute();
   const items = selectedRows();
   const conflicts = conflictKeys(items);
   const columns = new Map();
@@ -451,7 +574,10 @@ function renderSelectedList(items, conflicts) {
     remove.className = "removeButton";
     remove.type = "button";
     remove.textContent = "삭제";
-    remove.addEventListener("click", () => removeCourse(row.key));
+    remove.addEventListener("click", (event) => {
+      event.stopPropagation();
+      removeCourse(row.key);
+    });
     card.addEventListener("click", () => {
       selectedKey = row.key;
       renderResults();
@@ -562,8 +688,8 @@ function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
 function downloadTimetableImage() {
   const items = selectedRows();
   const scale = 2;
-  const width = 1440;
-  const height = 900;
+  const width = 2400;
+  const height = 1600;
   const canvas = document.createElement("canvas");
   canvas.width = width * scale;
   canvas.height = height * scale;
@@ -574,23 +700,23 @@ function downloadTimetableImage() {
   ctx.fillRect(0, 0, width, height);
 
   ctx.fillStyle = "#213044";
-  ctx.font = "800 34px system-ui, -apple-system, sans-serif";
-  ctx.fillText("2026-2 SNU 시간표", 42, 56);
+  ctx.font = "800 54px system-ui, -apple-system, sans-serif";
+  ctx.fillText("2026-2 SNU 시간표", 72, 92);
   ctx.fillStyle = "#6d7a8d";
-  ctx.font = "700 16px system-ui, -apple-system, sans-serif";
-  ctx.fillText(`과목 ${items.length}개 · 학점 ${els.creditCount.textContent} · 마지막 업데이트 ${formatUpdatedAt(rawData.meta?.fetchedAt || "")}`, 42, 84);
+  ctx.font = "700 24px system-ui, -apple-system, sans-serif";
+  ctx.fillText(`과목 ${items.length}개 · 학점 ${els.creditCount.textContent} · 마지막 업데이트 ${formatUpdatedAt(rawData.meta?.fetchedAt || "")}`, 72, 128);
 
-  const tableX = 42;
-  const tableY = 118;
-  const tableW = width - 84;
-  const tableH = height - 160;
-  const timeW = 74;
-  const headerH = 44;
+  const tableX = 72;
+  const tableY = 176;
+  const tableW = width - 144;
+  const tableH = height - 236;
+  const timeW = 104;
+  const headerH = 64;
   const dayW = (tableW - timeW) / dayLabels.length;
   const minuteScale = (tableH - headerH) / (endMinute - startMinute);
 
   ctx.fillStyle = "#ffffff";
-  drawRoundedRect(ctx, tableX, tableY, tableW, tableH, 12);
+  drawRoundedRect(ctx, tableX, tableY, tableW, tableH, 18);
   ctx.fill();
   ctx.strokeStyle = "#dce7ef";
   ctx.lineWidth = 2;
@@ -606,7 +732,7 @@ function downloadTimetableImage() {
   ctx.stroke();
 
   ctx.fillStyle = "#213044";
-  ctx.font = "800 15px system-ui, -apple-system, sans-serif";
+  ctx.font = "800 23px system-ui, -apple-system, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("시간", tableX + timeW / 2, tableY + headerH / 2);
@@ -616,7 +742,7 @@ function downloadTimetableImage() {
 
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "right";
-  ctx.font = "700 14px system-ui, -apple-system, sans-serif";
+  ctx.font = "700 21px system-ui, -apple-system, sans-serif";
   for (let minute = startMinute; minute <= endMinute; minute += 60) {
     const y = tableY + headerH + (minute - startMinute) * minuteScale;
     ctx.strokeStyle = "#e5eef5";
@@ -625,7 +751,7 @@ function downloadTimetableImage() {
     ctx.lineTo(tableX + tableW, y);
     ctx.stroke();
     ctx.fillStyle = "#6d7a8d";
-    ctx.fillText(formatHour(minute), tableX + timeW - 12, Math.min(tableY + tableH - 8, y + 5));
+    ctx.fillText(formatHour(minute), tableX + timeW - 18, Math.min(tableY + tableH - 12, y + 8));
   }
 
   ctx.strokeStyle = "#edf3f7";
@@ -644,24 +770,24 @@ function downloadTimetableImage() {
     parseBlocks(row).forEach((block) => {
       const dayIndex = dayLabels.indexOf(block.day);
       if (dayIndex === -1) return;
-      const x = tableX + timeW + dayW * dayIndex + 8;
+      const x = tableX + timeW + dayW * dayIndex + 12;
       const y = tableY + headerH + Math.max(0, block.start - startMinute) * minuteScale;
-      const w = dayW - 16;
-      const h = Math.max(22, (block.end - block.start) * minuteScale);
+      const w = dayW - 24;
+      const h = Math.max(36, (block.end - block.start) * minuteScale);
       ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.16)`;
-      drawRoundedRect(ctx, x, y + 4, w, h - 8, 9);
+      drawRoundedRect(ctx, x, y + 7, w, Math.max(22, h - 14), 14);
       ctx.fill();
       ctx.strokeStyle = conflicts.has(row.key) ? "#ff6460" : color;
-      ctx.lineWidth = conflicts.has(row.key) ? 3 : 2;
+      ctx.lineWidth = conflicts.has(row.key) ? 5 : 3;
       ctx.stroke();
       ctx.fillStyle = mixWithInk(color);
       ctx.textAlign = "center";
-      ctx.font = "800 15px system-ui, -apple-system, sans-serif";
-      const textY = y + Math.max(22, h / 2 - 9);
-      wrapCanvasText(ctx, row.courseName, x + w / 2, textY, w - 18, 18, h < 44 ? 1 : 2);
-      if (h >= 44) {
-        ctx.font = "700 12px system-ui, -apple-system, sans-serif";
-        ctx.fillText(row.professor || "교수 미지정", x + w / 2, Math.min(y + h - 13, textY + 36));
+      ctx.font = "800 24px system-ui, -apple-system, sans-serif";
+      const textY = y + Math.max(34, h / 2 - 13);
+      wrapCanvasText(ctx, row.courseName, x + w / 2, textY, w - 32, 30, h < 70 ? 1 : 2);
+      if (h >= 70) {
+        ctx.font = "700 18px system-ui, -apple-system, sans-serif";
+        ctx.fillText(row.professor || "교수 미지정", x + w / 2, Math.min(y + h - 22, textY + 54));
       }
     });
   });
