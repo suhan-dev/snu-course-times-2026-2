@@ -81,8 +81,12 @@
               <label><input type="checkbox" name="major" value="비전공" checked />비전공</label>
             </fieldset>
 
-            <fieldset class="checkgroup">
+            <fieldset class="checkgroup dayGroup">
               <legend>요일</legend>
+              <div class="modeSwitch" role="radiogroup" aria-label="요일 필터 기준">
+                <label><input type="radio" name="dayMode" value="include" checked />포함</label>
+                <label><input type="radio" name="dayMode" value="exact" />요일만</label>
+              </div>
               <label><input type="checkbox" name="day" value="월" />월</label>
               <label><input type="checkbox" name="day" value="화" />화</label>
               <label><input type="checkbox" name="day" value="수" />수</label>
@@ -164,6 +168,6 @@
     </main>
 
     <script src="./data/courses-data.js?v=20260619-writing50"></script>
-    <script src="./app.js?v=20260619-preserve-saved"></script>
+    <script src="./app.js?v=20260620-day-filter-mode"></script>
   </body>
 </html>

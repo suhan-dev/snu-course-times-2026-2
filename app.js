@@ -298,8 +298,16 @@ function courseSearchScore(row, query) {
   return Number.POSITIVE_INFINITY;
 }
 
-function matchesDays(row, days) {
+function selectedValue(name) {
+  return document.querySelector(`input[name="${name}"]:checked`)?.value || "";
+}
+
+function matchesDays(row, days, mode) {
   if (!days.size) return true;
+  if (mode === "exact") {
+    if (row.dayList.length !== days.size) return false;
+    return row.dayList.every((day) => days.has(day));
+  }
   return row.dayList.some((day) => days.has(day));
 }
 
@@ -316,6 +324,7 @@ function applyFilters() {
   const grades = checkedValues("grade");
   const majors = checkedValues("major");
   const days = checkedValues("day");
+  const dayMode = selectedValue("dayMode") || "include";
   const courseQuery = els.courseSearch.value;
   const professorQuery = els.professorSearch.value;
   const department = normalize(els.department.value);
@@ -327,7 +336,7 @@ function applyFilters() {
     if (!grades.has(row.grade)) return false;
     if (!majors.has(row.majorBinary)) return false;
     if (department && !includesLooseSpacing(row.department, department)) return false;
-    if (!matchesDays(row, days)) return false;
+    if (!matchesDays(row, days, dayMode)) return false;
     if (!matchesTime(row, start, end)) return false;
     if (!matchesCourseQuery(row, courseQuery)) return false;
     if (!includesLooseSpacing(professorSearchText(row), professorQuery)) return false;

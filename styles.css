@@ -328,6 +328,40 @@ h3 {
   font-weight: 900;
 }
 
+.dayGroup {
+  position: relative;
+  padding-right: 99px;
+}
+
+.modeSwitch {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  min-width: 88px;
+  overflow: hidden;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+}
+
+.modeSwitch label {
+  justify-content: center;
+  gap: 0;
+  margin: 0;
+  padding: 3px 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.modeSwitch label:has(input:checked) {
+  background: var(--mint);
+  color: #fff;
+}
+
 input[type="search"],
 input[list],
 select {
@@ -379,6 +413,10 @@ select:focus {
   padding: 5px 6px;
 }
 
+.searchControls .dayGroup {
+  padding: 5px 100px 5px 6px;
+}
+
 .searchControls .field span,
 .searchControls .checkgroup legend {
   margin-bottom: 2px;
@@ -401,10 +439,28 @@ select:focus {
   line-height: 1.15;
 }
 
+.searchControls .modeSwitch label {
+  justify-content: center;
+  gap: 0;
+  margin: 0;
+  padding: 3px 6px;
+  line-height: 1;
+}
+
 input[type="checkbox"] {
   width: 15px;
   height: 15px;
   accent-color: var(--mint-deep);
+}
+
+input[type="radio"] {
+  accent-color: var(--mint-deep);
+}
+
+.modeSwitch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .searchControls input[type="checkbox"] {
