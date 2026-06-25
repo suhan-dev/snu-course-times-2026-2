@@ -10,6 +10,7 @@ const legacyScheduleStorageKey = "snuScheduleKeys";
 const themeStorageKey = "snuTheme:2026-2";
 const colorPalette = ["#59b8a8", "#7bbcec", "#ff8e83", "#b9a7ff", "#f3b85d", "#7fc97f", "#f7a6c8", "#58a6d6"];
 const strictCompactQueries = new Set(["전자기"]);
+const englishLectureQueries = new Set(["영강", "영어강의", "영어강좌", "englishlecture", "english"]);
 
 let visibleRows = [];
 let renderLimit = pageSize;
@@ -283,6 +284,7 @@ function courseSearchScore(row, query) {
 
   const compactName = compactNormalize(row.courseName);
   const compactCode = compactNormalize(row.courseCode);
+  if (englishLectureQueries.has(compactQuery)) return row.isEnglishLecture ? 1 : Number.POSITIVE_INFINITY;
   if (compactName === compactQuery) return 0;
   if (compactName.startsWith(compactQuery)) return 10 + compactName.length - compactQuery.length;
 
@@ -376,13 +378,23 @@ function renderResults() {
     header.className = "courseCardHeader";
 
     const titleWrap = document.createElement("div");
+    const titleLine = document.createElement("div");
+    titleLine.className = "courseTitleLine";
     const title = document.createElement("h3");
     title.textContent = row.courseName;
+    titleLine.append(title);
+    if (row.isEnglishLecture) {
+      const englishBadge = document.createElement("span");
+      englishBadge.className = "miniBadge englishBadge";
+      englishBadge.textContent = "영강";
+      englishBadge.title = "영어강의";
+      titleLine.append(englishBadge);
+    }
     const meta = document.createElement("p");
     meta.className = "courseMeta";
     meta.textContent = `${row.category} · ${row.grade} · ${row.department || "학과 미지정"} · ${row.courseCode}-${row.section} · ${row.professor || "교수 미지정"}`;
     meta.title = meta.textContent;
-    titleWrap.append(title, meta);
+    titleWrap.append(titleLine, meta);
 
     const add = document.createElement("button");
     const alreadyAdded = selectedKeys.includes(row.key);
@@ -628,8 +640,10 @@ function renderDetail(row) {
     ...detailRow("학과", row.department),
     ...detailRow("담당교수", row.professor),
     ...detailRow("학점", row.credits),
+    ...detailRow("영어강의 여부", row.isEnglishLecture ? "영강 · 영어강의" : "일반", Boolean(row.isEnglishLecture)),
     ...detailRow("수강신청인원/정원", row.enrollmentCapacity),
     ...detailRow("시간 출처", row.scheduleSource),
+    ...detailRow("특이사항", row.flags),
   );
 }
 

@@ -560,6 +560,36 @@ input[type="radio"] {
   white-space: nowrap;
 }
 
+.courseTitleLine {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.courseTitleLine h3 {
+  min-width: 0;
+}
+
+.miniBadge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 17px;
+  border: 1px solid rgba(45, 143, 128, 0.28);
+  border-radius: 5px;
+  background: rgba(45, 143, 128, 0.1);
+  color: var(--mint-deep);
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.englishBadge {
+  letter-spacing: 0;
+}
+
 .courseMeta,
 .courseTime {
   color: var(--muted);
