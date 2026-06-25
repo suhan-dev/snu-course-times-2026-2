@@ -158,6 +158,13 @@ h3 {
   margin-bottom: 14px;
 }
 
+#detailTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 .headerActions {
   display: flex;
   gap: 10px;
@@ -590,6 +597,10 @@ input[type="radio"] {
   letter-spacing: 0;
 }
 
+.detailTitleBadge {
+  transform: translateY(1px);
+}
+
 .courseMeta,
 .courseTime {
   color: var(--muted);
@@ -910,12 +921,12 @@ input[type="radio"] {
   color: var(--muted);
   font-size: 11px;
   font-weight: 950;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .detailList dd {
-  margin: 4px 0 0;
-  line-height: 1.45;
+  margin: 3px 0 0;
+  line-height: 1.38;
 }
 
 .badge {
@@ -958,9 +969,18 @@ input[type="radio"] {
   }
 
   .searchPanel,
-  .courseResults,
-  .schedulePanel {
+  .courseResults {
     overflow: auto;
+  }
+
+  .schedulePanel {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .schedulePanel .panelBlock {
+    min-height: 0;
+    overflow: hidden;
   }
 }
 

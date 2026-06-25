@@ -610,6 +610,22 @@ function renderSelectedList(items, conflicts) {
   els.selectedCourses.replaceChildren(frag);
 }
 
+function englishIndicator() {
+  const span = document.createElement("span");
+  span.className = "miniBadge englishBadge detailTitleBadge";
+  span.textContent = "영강";
+  span.title = "영어강의";
+  return span;
+}
+
+function filteredFlags(row) {
+  return (row.flags || "")
+    .split(",")
+    .map((flag) => flag.trim())
+    .filter((flag) => flag && flag !== "영어강의" && flag !== "외국어강의")
+    .join(", ");
+}
+
 function detailRow(label, value, badge = false) {
   const dt = document.createElement("dt");
   dt.textContent = label;
@@ -631,19 +647,25 @@ function renderDetail(row) {
     els.detailList.replaceChildren();
     return;
   }
-  els.detailTitle.textContent = row.courseName;
-  els.detailList.replaceChildren(
+  els.detailTitle.replaceChildren(document.createTextNode(row.courseName));
+  if (row.isEnglishLecture) els.detailTitle.append(englishIndicator());
+  const detailRows = [
     ...detailRow("시간표", row.schedule || "시간 미공개", Boolean(row.schedule)),
-    ...detailRow("필터 기준 시간대", row.timeSlots),
+  ];
+  if (row.timeSlots) detailRows.push(...detailRow("필터 기준 시간대", row.timeSlots));
+  detailRows.push(
     ...detailRow("과목번호", `${row.courseCode} / ${row.section}`),
     ...detailRow("구분", `${row.category} · ${row.grade} · ${row.majorStatus}`),
     ...detailRow("학과", row.department),
     ...detailRow("담당교수", row.professor),
     ...detailRow("학점", row.credits),
-    ...detailRow("영어강의 여부", row.isEnglishLecture ? "영강 · 영어강의" : "일반", Boolean(row.isEnglishLecture)),
     ...detailRow("수강신청인원/정원", row.enrollmentCapacity),
     ...detailRow("시간 출처", row.scheduleSource),
-    ...detailRow("특이사항", row.flags),
+  );
+  const flags = filteredFlags(row);
+  if (flags) detailRows.push(...detailRow("특이사항", flags));
+  els.detailList.replaceChildren(
+    ...detailRows,
   );
 }
 
