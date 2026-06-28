@@ -1081,13 +1081,31 @@ input[type="radio"] {
 
   .searchFields,
   .filterGrid,
-  .inlineControls,
-  .statStrip {
+  .inlineControls {
     grid-template-columns: 1fr;
+  }
+
+  .calendarActions {
+    align-items: stretch;
+    flex-wrap: wrap;
+    width: 100%;
   }
 
   .statStrip {
     display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .statStrip div {
+    min-width: 0;
+    padding: 7px 8px;
+  }
+
+  .compactButton {
+    flex: 1 1 100%;
+    width: 100%;
   }
 
   .appShell {
