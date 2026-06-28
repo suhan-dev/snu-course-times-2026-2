@@ -23,6 +23,7 @@ let savedSchedules = { activeId: "", items: [] };
 let resizeTimer;
 let toastTimer;
 let pendingSaveMode = "save-as";
+let pendingRenameId = "";
 
 const els = {
   visibleCount: document.querySelector("#visibleCount"),
@@ -720,7 +721,8 @@ async function shareCurrentSchedule() {
     return;
   }
   const copied = await copyText(buildShareUrl());
-  showToast(copied ? "URL이 복사되었습니다." : "URL 복사에 실패했습니다.");
+  const stats = scheduleStatsForKeys(selectedKeys);
+  showToast(copied ? `현재 시간표 ${stats.credits}학점 시간표 기준으로 URL이 복사되었습니다.` : "URL 복사에 실패했습니다.");
 }
 
 function nextScheduleName() {
@@ -760,8 +762,10 @@ function saveCurrentScheduleAs() {
 
 function openSaveNameModal(mode) {
   pendingSaveMode = mode;
+  pendingRenameId = "";
   const isFirstSave = mode === "save";
   els.saveNameTitle.textContent = isFirstSave ? "시간표 저장" : "다른 이름으로 저장";
+  els.confirmSaveName.textContent = "저장";
   els.scheduleNameInput.value = isFirstSave ? nextScheduleName() : defaultSaveName();
   els.saveNameModal.hidden = false;
   window.requestAnimationFrame(() => {
@@ -778,6 +782,10 @@ function confirmNamedSave() {
   const name = els.scheduleNameInput.value.trim();
   if (!name) {
     showToast("시간표 이름을 입력해주세요.");
+    return;
+  }
+  if (pendingSaveMode === "rename") {
+    renameSavedSchedule(pendingRenameId, name);
     return;
   }
   const record = createScheduleRecord(name);
@@ -857,16 +865,51 @@ function renderSavedScheduleList() {
     load.className = "ghostButton smallButton";
     load.textContent = "불러오기";
     load.addEventListener("click", () => loadSavedSchedule(schedule.id));
+    const rename = document.createElement("button");
+    rename.type = "button";
+    rename.className = "ghostButton smallButton";
+    rename.textContent = "이름 변경";
+    rename.addEventListener("click", () => openRenameScheduleModal(schedule.id));
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "ghostButton smallButton dangerButton";
     remove.textContent = "삭제";
     remove.addEventListener("click", () => deleteSavedSchedule(schedule.id));
-    actions.append(load, remove);
+    actions.append(load, rename, remove);
     item.append(info, actions);
     frag.append(item);
   });
   els.savedScheduleList.replaceChildren(frag);
+}
+
+function openRenameScheduleModal(id) {
+  const schedule = savedSchedules.items.find((item) => item.id === id);
+  if (!schedule) return;
+  pendingSaveMode = "rename";
+  pendingRenameId = id;
+  closeLoadScheduleModal();
+  els.saveNameTitle.textContent = "시간표 이름 변경";
+  els.confirmSaveName.textContent = "변경";
+  els.scheduleNameInput.value = schedule.name;
+  els.saveNameModal.hidden = false;
+  window.requestAnimationFrame(() => {
+    els.scheduleNameInput.focus();
+    els.scheduleNameInput.select();
+  });
+}
+
+function renameSavedSchedule(id, name) {
+  const schedule = savedSchedules.items.find((item) => item.id === id);
+  if (!schedule) return;
+  schedule.name = name;
+  schedule.updatedAt = new Date().toISOString();
+  saveSavedSchedules();
+  closeSaveNameModal();
+  pendingRenameId = "";
+  if (activeSavedId === id) updateDocumentState();
+  renderSavedScheduleList();
+  openLoadScheduleModal();
+  showToast("시간표 이름을 변경했습니다.");
 }
 
 function loadSavedSchedule(id) {

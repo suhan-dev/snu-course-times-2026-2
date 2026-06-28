@@ -960,19 +960,19 @@ input[type="radio"] {
 
 .fileToolbar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
   gap: 4px;
   margin-top: 7px;
 }
 
 .fileToolbar .toolButton {
-  min-height: 28px;
-  padding: 0 5px;
+  min-height: 30px;
+  padding: 0 7px;
   justify-content: center;
   width: 100%;
   box-shadow: none;
   overflow: hidden;
-  font-size: 10.5px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1159,7 +1159,11 @@ input[type="radio"] {
 }
 
 .savedScheduleActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   flex: 0 0 auto;
+  min-width: 224px;
+  width: min(260px, 100%);
 }
 
 @media (min-width: 760px) and (min-height: 760px) {
@@ -1400,8 +1404,7 @@ input[type="radio"] {
   }
 
   .savedScheduleActions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .courseBlock.isTiny {

@@ -10,7 +10,7 @@
         if (localStorage.getItem("snuTheme:2026-2") === "dark") document.documentElement.dataset.theme = "dark";
       } catch {}
     </script>
-    <link rel="stylesheet" href="./styles.css?v=20260628-file-workflow" />
+    <link rel="stylesheet" href="./styles.css?v=20260629-file-labels-rename" />
   </head>
   <body>
     <header class="appHeader">
@@ -158,10 +158,10 @@
               <span id="documentStatus" class="saveState">저장 안 됨</span>
             </div>
             <div class="fileToolbar" aria-label="시간표 파일 작업">
-              <button id="newScheduleButton" class="ghostButton toolButton" type="button">새로</button>
+              <button id="newScheduleButton" class="ghostButton toolButton" type="button">새로만들기</button>
+              <button id="saveAsScheduleButton" class="ghostButton toolButton" type="button">다른 이름으로 저장</button>
+              <button id="saveScheduleButton" class="ghostButton toolButton" type="button">저장</button>
               <button id="loadScheduleButton" class="ghostButton toolButton" type="button">열기</button>
-              <button id="saveScheduleButton" class="primaryButton toolButton" type="button">저장</button>
-              <button id="saveAsScheduleButton" class="ghostButton toolButton" type="button">다른 이름</button>
               <button id="shareScheduleButton" class="ghostButton toolButton" type="button">공유</button>
             </div>
           </div>
@@ -212,6 +212,6 @@
     </div>
 
     <script src="./data/courses-data.js?v=20260625-english-badge"></script>
-    <script src="./app.js?v=20260628-file-workflow"></script>
+    <script src="./app.js?v=20260629-file-labels-rename"></script>
   </body>
 </html>
