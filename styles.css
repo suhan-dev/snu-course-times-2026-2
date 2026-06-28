@@ -884,23 +884,101 @@ input[type="radio"] {
 
 .selectedCourses {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 9px;
+  min-height: 0;
   max-height: 318px;
   overflow: auto;
 }
 
-.selectedTools {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 10px;
+.selectedPanel,
+.detailPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.selectedTools .toolButton {
+.selectedPanel {
+  flex: 1 1 52%;
+}
+
+.detailPanel {
+  flex: 1 1 48%;
+}
+
+.documentBar {
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--soft);
+  padding: 8px;
+}
+
+.documentInfo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.documentEyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 950;
+  margin-bottom: 2px;
+}
+
+#documentName {
+  max-width: 180px;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saveState {
+  flex: 0 0 auto;
+  border: 1px solid var(--danger-line);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.saveState.saved {
+  border-color: rgba(45, 143, 128, 0.22);
+  background: var(--selected-bg);
+  color: var(--mint-deep);
+}
+
+.fileToolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.fileToolbar .toolButton {
+  min-height: 28px;
+  padding: 0 5px;
   justify-content: center;
   width: 100%;
   box-shadow: none;
+  overflow: hidden;
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compactTitle {
+  margin-bottom: 7px;
 }
 
 .selectedCard {
@@ -947,6 +1025,7 @@ input[type="radio"] {
 }
 
 .detailList {
+  overflow: auto;
   margin: 0;
 }
 
@@ -1021,6 +1100,30 @@ input[type="radio"] {
 .modalHeader {
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.saveNameField {
+  margin-bottom: 12px;
+}
+
+.saveNameField input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  color: var(--ink);
+  outline: none;
+  padding: 0 11px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modalActions .toolButton {
+  min-width: 110px;
 }
 
 .savedScheduleList {
@@ -1101,6 +1204,13 @@ input[type="radio"] {
   .schedulePanel .panelBlock {
     min-height: 0;
     overflow: hidden;
+  }
+
+  .selectedCourses,
+  .detailList {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
   }
 }
 
@@ -1201,8 +1311,7 @@ input[type="radio"] {
 
   .searchFields,
   .filterGrid,
-  .inlineControls,
-  .selectedTools {
+  .inlineControls {
     grid-template-columns: 1fr;
   }
 

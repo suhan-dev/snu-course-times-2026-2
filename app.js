@@ -22,6 +22,7 @@ let activeSavedId = "";
 let savedSchedules = { activeId: "", items: [] };
 let resizeTimer;
 let toastTimer;
+let pendingSaveMode = "save-as";
 
 const els = {
   visibleCount: document.querySelector("#visibleCount"),
@@ -36,6 +37,7 @@ const els = {
   more: document.querySelector("#moreButton"),
   clearSchedule: document.querySelector("#clearScheduleButton"),
   saveImage: document.querySelector("#saveImageButton"),
+  newSchedule: document.querySelector("#newScheduleButton"),
   shareSchedule: document.querySelector("#shareScheduleButton"),
   saveSchedule: document.querySelector("#saveScheduleButton"),
   saveAsSchedule: document.querySelector("#saveAsScheduleButton"),
@@ -53,10 +55,17 @@ const els = {
   detailTitle: document.querySelector("#detailTitle"),
   detailList: document.querySelector("#detailList"),
   lastUpdated: document.querySelector("#lastUpdatedText"),
+  documentName: document.querySelector("#documentName"),
+  documentStatus: document.querySelector("#documentStatus"),
   toast: document.querySelector("#toast"),
   loadModal: document.querySelector("#loadScheduleModal"),
   savedScheduleList: document.querySelector("#savedScheduleList"),
   closeLoadModal: document.querySelector("#closeLoadModalButton"),
+  saveNameModal: document.querySelector("#saveNameModal"),
+  saveNameTitle: document.querySelector("#saveNameTitle"),
+  scheduleNameInput: document.querySelector("#scheduleNameInput"),
+  confirmSaveName: document.querySelector("#confirmSaveNameButton"),
+  cancelSaveName: document.querySelector("#cancelSaveNameButton"),
 };
 
 const rowByKey = new Map(rows.map((row) => [row.key, row]));
@@ -110,6 +119,7 @@ function setup() {
     renderResults();
   });
   els.saveImage.addEventListener("click", downloadTimetableImage);
+  els.newSchedule.addEventListener("click", createNewSchedule);
   els.shareSchedule.addEventListener("click", shareCurrentSchedule);
   els.saveSchedule.addEventListener("click", saveCurrentSchedule);
   els.saveAsSchedule.addEventListener("click", saveCurrentScheduleAs);
@@ -118,13 +128,21 @@ function setup() {
   els.loadModal.addEventListener("click", (event) => {
     if (event.target === els.loadModal) closeLoadScheduleModal();
   });
+  els.confirmSaveName.addEventListener("click", confirmNamedSave);
+  els.cancelSaveName.addEventListener("click", closeSaveNameModal);
+  els.saveNameModal.addEventListener("click", (event) => {
+    if (event.target === els.saveNameModal) closeSaveNameModal();
+  });
+  els.scheduleNameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") confirmNamedSave();
+    if (event.key === "Escape") closeSaveNameModal();
+  });
   els.themeToggle.addEventListener("click", () => {
     applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
   });
   els.clearSchedule.addEventListener("click", () => {
     selectedKeys = [];
     selectedKey = visibleRows[0]?.key || "";
-    activeSavedId = "";
     persistScheduleState();
     renderAll();
   });
@@ -255,7 +273,7 @@ function loadSavedSchedules() {
           id: item.id,
           name: String(item.name || "내 시간표"),
           updatedAt: item.updatedAt || "",
-          selectedShareHashes: parseShareHashList((item.selectedShareHashes || []).join(".")),
+          selectedShareHashes: parseShareHashList(Array.isArray(item.selectedShareHashes) ? item.selectedShareHashes.join(".") : item.selectedShareHashes),
           selectedStableIds: Array.isArray(item.selectedStableIds) ? item.selectedStableIds.filter(Boolean) : [],
           selectedKeys: Array.isArray(item.selectedKeys) ? item.selectedKeys.filter(Boolean) : [],
         })),
@@ -302,6 +320,59 @@ function createScheduleRecord(name, keys = selectedKeys) {
     selectedStableIds: validKeys.map((key) => stableCourseId(rowByKey.get(key))),
     selectedKeys: validKeys,
   };
+}
+
+function selectedSignature(keys = selectedKeys) {
+  return uniqueShareHashesForKeys(keys).slice().sort().join(".");
+}
+
+function savedScheduleSignature(schedule) {
+  return parseShareHashList((schedule?.selectedShareHashes || []).join(".")).slice().sort().join(".");
+}
+
+function currentSavedSchedule() {
+  return savedSchedules.items.find((item) => item.id === activeSavedId) || null;
+}
+
+function isDocumentDirty() {
+  const saved = currentSavedSchedule();
+  if (!saved) return selectedKeys.length > 0;
+  return selectedSignature() !== savedScheduleSignature(saved);
+}
+
+function scheduleStatsForKeys(keys) {
+  const validKeys = uniqueValidKeys(keys);
+  const credits = validKeys.reduce((sum, key) => sum + (Number.parseFloat(rowByKey.get(key)?.credits) || 0), 0);
+  return {
+    count: validKeys.length,
+    credits: credits.toLocaleString("ko-KR", { maximumFractionDigits: 1 }),
+  };
+}
+
+function defaultSaveName() {
+  const saved = currentSavedSchedule();
+  if (!saved) return nextScheduleName();
+  let base = `${saved.name} 복사본`;
+  const used = new Set(savedSchedules.items.map((item) => item.name));
+  if (!used.has(base)) return base;
+  let index = 2;
+  while (used.has(`${base} ${index}`)) index += 1;
+  return `${base} ${index}`;
+}
+
+function updateDocumentState() {
+  const saved = currentSavedSchedule();
+  const dirty = isDocumentDirty();
+  const name = saved?.name || "제목 없음";
+  if (els.documentName) {
+    els.documentName.textContent = name;
+    els.documentName.title = name;
+  }
+  if (els.documentStatus) {
+    els.documentStatus.textContent = saved ? dirty ? "수정됨" : "저장됨" : "저장 안 됨";
+    els.documentStatus.classList.toggle("saved", Boolean(saved && !dirty));
+    els.documentStatus.classList.toggle("dirty", Boolean(!saved || dirty));
+  }
 }
 
 function parseShareHashList(value) {
@@ -666,13 +737,7 @@ function nextScheduleName() {
 function saveCurrentSchedule() {
   const existingIndex = savedSchedules.items.findIndex((item) => item.id === activeSavedId);
   if (existingIndex === -1) {
-    const record = createScheduleRecord(nextScheduleName());
-    savedSchedules.items.unshift(record);
-    activeSavedId = record.id;
-    saveSavedSchedules();
-    persistScheduleState();
-    renderSchedule();
-    showToast("새 시간표로 저장했습니다.");
+    openSaveNameModal("save");
     return;
   }
 
@@ -685,19 +750,60 @@ function saveCurrentSchedule() {
   saveSavedSchedules();
   persistScheduleState();
   renderSchedule();
+  updateDocumentState();
   showToast("시간표를 저장했습니다.");
 }
 
 function saveCurrentScheduleAs() {
-  const name = window.prompt("저장할 시간표 이름", nextScheduleName());
-  if (name == null) return;
+  openSaveNameModal("save-as");
+}
+
+function openSaveNameModal(mode) {
+  pendingSaveMode = mode;
+  const isFirstSave = mode === "save";
+  els.saveNameTitle.textContent = isFirstSave ? "시간표 저장" : "다른 이름으로 저장";
+  els.scheduleNameInput.value = isFirstSave ? nextScheduleName() : defaultSaveName();
+  els.saveNameModal.hidden = false;
+  window.requestAnimationFrame(() => {
+    els.scheduleNameInput.focus();
+    els.scheduleNameInput.select();
+  });
+}
+
+function closeSaveNameModal() {
+  els.saveNameModal.hidden = true;
+}
+
+function confirmNamedSave() {
+  const name = els.scheduleNameInput.value.trim();
+  if (!name) {
+    showToast("시간표 이름을 입력해주세요.");
+    return;
+  }
   const record = createScheduleRecord(name);
   savedSchedules.items.unshift(record);
   activeSavedId = record.id;
   saveSavedSchedules();
   persistScheduleState();
+  closeSaveNameModal();
   renderSchedule();
-  showToast("다른 이름으로 저장했습니다.");
+  updateDocumentState();
+  showToast(pendingSaveMode === "save" ? "시간표를 저장했습니다." : "다른 이름으로 저장했습니다.");
+}
+
+function confirmDiscardIfDirty() {
+  if (!isDocumentDirty()) return true;
+  return window.confirm("저장되지 않은 변경사항이 있습니다. 계속할까요?");
+}
+
+function createNewSchedule() {
+  if (!confirmDiscardIfDirty()) return;
+  selectedKeys = [];
+  selectedKey = visibleRows[0]?.key || "";
+  activeSavedId = "";
+  persistScheduleState();
+  renderAll();
+  showToast("새 시간표를 만들었습니다.");
 }
 
 function formatSavedAt(value) {
@@ -739,8 +845,9 @@ function renderSavedScheduleList() {
     const title = document.createElement("h3");
     title.textContent = schedule.name;
     const keys = keysFromSavedSchedule(schedule);
+    const stats = scheduleStatsForKeys(keys);
     const meta = document.createElement("p");
-    meta.textContent = `${keys.length}과목 · ${formatSavedAt(schedule.updatedAt) || "저장 시간 미확인"}`;
+    meta.textContent = `${stats.count}과목 · ${stats.credits}학점 · ${formatSavedAt(schedule.updatedAt) || "저장 시간 미확인"}`;
     info.append(title, meta);
 
     const actions = document.createElement("div");
@@ -763,6 +870,7 @@ function renderSavedScheduleList() {
 }
 
 function loadSavedSchedule(id) {
+  if (id !== activeSavedId && !confirmDiscardIfDirty()) return;
   const schedule = savedSchedules.items.find((item) => item.id === id);
   if (!schedule) return;
   selectedKeys = keysFromSavedSchedule(schedule);
@@ -784,6 +892,7 @@ function deleteSavedSchedule(id) {
   persistScheduleState();
   renderSavedScheduleList();
   renderSchedule();
+  updateDocumentState();
 }
 
 function parseMinute(value) {
@@ -911,11 +1020,9 @@ function renderSelectedList(items, conflicts) {
   els.selectedCount.textContent = items.length.toLocaleString("ko-KR");
   els.creditCount.textContent = credits.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
   els.conflictCount.textContent = conflicts.size.toLocaleString("ko-KR");
-  const activeSchedule = savedSchedules.items.find((item) => item.id === activeSavedId);
-  els.selectedNote.textContent = items.length
-    ? `${items.length}개 선택${activeSchedule ? ` · ${activeSchedule.name}` : ""}`
-    : activeSchedule ? activeSchedule.name : "비어 있음";
+  els.selectedNote.textContent = items.length ? `${items.length}개 선택` : "비어 있음";
   els.conflictBanner.hidden = conflicts.size === 0;
+  updateDocumentState();
 
   if (!items.length) {
     const empty = document.createElement("p");

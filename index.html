@@ -10,7 +10,7 @@
         if (localStorage.getItem("snuTheme:2026-2") === "dark") document.documentElement.dataset.theme = "dark";
       } catch {}
     </script>
-    <link rel="stylesheet" href="./styles.css?v=20260628-share-save" />
+    <link rel="stylesheet" href="./styles.css?v=20260628-file-workflow" />
   </head>
   <body>
     <header class="appHeader">
@@ -148,22 +148,32 @@
       </section>
 
       <aside class="schedulePanel" aria-label="선택 과목">
-        <section class="panelBlock">
-          <div class="panelTitle">
+        <section class="panelBlock selectedPanel">
+          <div class="documentBar" aria-label="현재 시간표 파일">
+            <div class="documentInfo">
+              <div>
+                <span class="documentEyebrow">현재 시간표</span>
+                <h2 id="documentName">제목 없음</h2>
+              </div>
+              <span id="documentStatus" class="saveState">저장 안 됨</span>
+            </div>
+            <div class="fileToolbar" aria-label="시간표 파일 작업">
+              <button id="newScheduleButton" class="ghostButton toolButton" type="button">새로</button>
+              <button id="loadScheduleButton" class="ghostButton toolButton" type="button">열기</button>
+              <button id="saveScheduleButton" class="primaryButton toolButton" type="button">저장</button>
+              <button id="saveAsScheduleButton" class="ghostButton toolButton" type="button">다른 이름</button>
+              <button id="shareScheduleButton" class="ghostButton toolButton" type="button">공유</button>
+            </div>
+          </div>
+          <div class="panelTitle compactTitle">
             <h2>선택한 과목</h2>
             <span id="selectedNote">비어 있음</span>
           </div>
           <div id="conflictBanner" class="conflictBanner" hidden>겹치는 시간이 있습니다.</div>
-          <div class="selectedTools" aria-label="시간표 저장과 공유">
-            <button id="shareScheduleButton" class="primaryButton toolButton" type="button">공유</button>
-            <button id="saveScheduleButton" class="ghostButton toolButton" type="button">저장</button>
-            <button id="saveAsScheduleButton" class="ghostButton toolButton" type="button">다른 이름</button>
-            <button id="loadScheduleButton" class="ghostButton toolButton" type="button">불러오기</button>
-          </div>
           <div id="selectedCourses" class="selectedCourses"></div>
         </section>
 
-        <section class="panelBlock">
+        <section class="panelBlock detailPanel">
           <div class="panelTitle">
             <h2>과목 상세</h2>
           </div>
@@ -185,7 +195,23 @@
       </section>
     </div>
 
+    <div id="saveNameModal" class="modalBackdrop" hidden>
+      <section class="modalPanel saveNamePanel" role="dialog" aria-modal="true" aria-labelledby="saveNameTitle">
+        <div class="modalHeader">
+          <h2 id="saveNameTitle">다른 이름으로 저장</h2>
+          <button id="cancelSaveNameButton" class="ghostButton smallButton" type="button">취소</button>
+        </div>
+        <label class="field saveNameField">
+          <span>시간표 이름</span>
+          <input id="scheduleNameInput" type="text" maxlength="40" autocomplete="off" />
+        </label>
+        <div class="modalActions">
+          <button id="confirmSaveNameButton" class="primaryButton toolButton" type="button">저장</button>
+        </div>
+      </section>
+    </div>
+
     <script src="./data/courses-data.js?v=20260625-english-badge"></script>
-    <script src="./app.js?v=20260628-share-save"></script>
+    <script src="./app.js?v=20260628-file-workflow"></script>
   </body>
 </html>
