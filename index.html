@@ -10,7 +10,7 @@
         if (localStorage.getItem("snuTheme:2026-2") === "dark") document.documentElement.dataset.theme = "dark";
       } catch {}
     </script>
-    <link rel="stylesheet" href="./styles.css?v=20260628-mobile-statstrip" />
+    <link rel="stylesheet" href="./styles.css?v=20260628-share-save" />
   </head>
   <body>
     <header class="appHeader">
@@ -154,6 +154,12 @@
             <span id="selectedNote">비어 있음</span>
           </div>
           <div id="conflictBanner" class="conflictBanner" hidden>겹치는 시간이 있습니다.</div>
+          <div class="selectedTools" aria-label="시간표 저장과 공유">
+            <button id="shareScheduleButton" class="primaryButton toolButton" type="button">공유</button>
+            <button id="saveScheduleButton" class="ghostButton toolButton" type="button">저장</button>
+            <button id="saveAsScheduleButton" class="ghostButton toolButton" type="button">다른 이름</button>
+            <button id="loadScheduleButton" class="ghostButton toolButton" type="button">불러오기</button>
+          </div>
           <div id="selectedCourses" class="selectedCourses"></div>
         </section>
 
@@ -167,7 +173,19 @@
       </aside>
     </main>
 
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <div id="loadScheduleModal" class="modalBackdrop" hidden>
+      <section class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="loadScheduleTitle">
+        <div class="modalHeader">
+          <h2 id="loadScheduleTitle">저장된 시간표</h2>
+          <button id="closeLoadModalButton" class="ghostButton smallButton" type="button">닫기</button>
+        </div>
+        <div id="savedScheduleList" class="savedScheduleList"></div>
+      </section>
+    </div>
+
     <script src="./data/courses-data.js?v=20260625-english-badge"></script>
-    <script src="./app.js?v=20260625-english-compact"></script>
+    <script src="./app.js?v=20260628-share-save"></script>
   </body>
 </html>

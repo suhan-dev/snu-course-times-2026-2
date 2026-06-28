@@ -7,7 +7,9 @@ const endMinute = 22 * 60;
 const fallbackPixelsPerMinute = 0.49;
 const scheduleStorageKey = "snuScheduleState:2026-2";
 const legacyScheduleStorageKey = "snuScheduleKeys";
+const savedSchedulesStorageKey = "snuSavedTimetables:2026-2";
 const themeStorageKey = "snuTheme:2026-2";
+const shareParamName = "s";
 const colorPalette = ["#59b8a8", "#7bbcec", "#ff8e83", "#b9a7ff", "#f3b85d", "#7fc97f", "#f7a6c8", "#58a6d6"];
 const strictCompactQueries = new Set(["전자기"]);
 const englishLectureQueries = new Set(["영강", "영어강의", "영어강좌", "englishlecture", "english"]);
@@ -16,7 +18,10 @@ let visibleRows = [];
 let renderLimit = pageSize;
 let selectedKey = "";
 let selectedKeys = [];
+let activeSavedId = "";
+let savedSchedules = { activeId: "", items: [] };
 let resizeTimer;
+let toastTimer;
 
 const els = {
   visibleCount: document.querySelector("#visibleCount"),
@@ -31,6 +36,10 @@ const els = {
   more: document.querySelector("#moreButton"),
   clearSchedule: document.querySelector("#clearScheduleButton"),
   saveImage: document.querySelector("#saveImageButton"),
+  shareSchedule: document.querySelector("#shareScheduleButton"),
+  saveSchedule: document.querySelector("#saveScheduleButton"),
+  saveAsSchedule: document.querySelector("#saveAsScheduleButton"),
+  loadSchedule: document.querySelector("#loadScheduleButton"),
   themeToggle: document.querySelector("#themeToggleButton"),
   themeToggleText: document.querySelector("#themeToggleText"),
   timeAxis: document.querySelector("#timeAxis"),
@@ -44,12 +53,24 @@ const els = {
   detailTitle: document.querySelector("#detailTitle"),
   detailList: document.querySelector("#detailList"),
   lastUpdated: document.querySelector("#lastUpdatedText"),
+  toast: document.querySelector("#toast"),
+  loadModal: document.querySelector("#loadScheduleModal"),
+  savedScheduleList: document.querySelector("#savedScheduleList"),
+  closeLoadModal: document.querySelector("#closeLoadModalButton"),
 };
 
 const rowByKey = new Map(rows.map((row) => [row.key, row]));
 const rowOrder = new Map(rows.map((row, index) => [row.key, index]));
 const rowKeyByStableId = new Map(rows.map((row) => [stableCourseId(row), row.key]));
-selectedKeys = loadSelectedKeys();
+const rowKeyByShareHash = new Map();
+rows.forEach((row) => {
+  const hash = courseShareHash(row);
+  if (!rowKeyByShareHash.has(hash)) rowKeyByShareHash.set(hash, row.key);
+});
+const initialShareHashes = readShareHashesFromLocation();
+savedSchedules = loadSavedSchedules();
+activeSavedId = initialShareHashes.length ? "" : loadActiveSavedId();
+selectedKeys = initialShareHashes.length ? keysFromShareHashes(initialShareHashes) : loadSelectedKeys();
 selectedKey = selectedKeys[0] || "";
 const timeOptions = [
   ["", "전체"],
@@ -89,12 +110,21 @@ function setup() {
     renderResults();
   });
   els.saveImage.addEventListener("click", downloadTimetableImage);
+  els.shareSchedule.addEventListener("click", shareCurrentSchedule);
+  els.saveSchedule.addEventListener("click", saveCurrentSchedule);
+  els.saveAsSchedule.addEventListener("click", saveCurrentScheduleAs);
+  els.loadSchedule.addEventListener("click", openLoadScheduleModal);
+  els.closeLoadModal.addEventListener("click", closeLoadScheduleModal);
+  els.loadModal.addEventListener("click", (event) => {
+    if (event.target === els.loadModal) closeLoadScheduleModal();
+  });
   els.themeToggle.addEventListener("click", () => {
     applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
   });
   els.clearSchedule.addEventListener("click", () => {
     selectedKeys = [];
     selectedKey = visibleRows[0]?.key || "";
+    activeSavedId = "";
     persistScheduleState();
     renderAll();
   });
@@ -112,6 +142,10 @@ function setup() {
 
   applyFilters();
   renderSchedule();
+  if (initialShareHashes.length) {
+    removeShareParamsFromUrl();
+    showToast(selectedKeys.length ? "공유 시간표를 불러왔습니다." : "불러올 수 있는 과목이 없습니다.");
+  }
   window.requestAnimationFrame(() => {
     buildTimeAxis();
     renderSchedule();
@@ -161,6 +195,33 @@ function stableCourseId(row) {
   return [row.category, row.courseCode, row.section].map((part) => String(part || "")).join("|");
 }
 
+function shareCourseIdentity(row) {
+  const code = compactNormalize(row.courseCode);
+  const section = compactNormalize(row.section);
+  // Keep share hashes tied to official course/section IDs, not row order, so data refreshes do not scramble links.
+  if (code || section) return `course:${code}|section:${section}`;
+  return [
+    "fallback",
+    compactNormalize(row.category),
+    compactNormalize(row.courseName),
+    compactNormalize(row.professor),
+    compactNormalize(row.schedule),
+  ].join("|");
+}
+
+function hashString64(value) {
+  let hash = 0xcbf29ce484222325n;
+  for (const character of String(value)) {
+    hash ^= BigInt(character.codePointAt(0));
+    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  }
+  return hash.toString(36).padStart(13, "0");
+}
+
+function courseShareHash(row) {
+  return hashString64(shareCourseIdentity(row));
+}
+
 function uniqueValidKeys(keys) {
   const seen = new Set();
   return keys.filter((key) => {
@@ -174,6 +235,96 @@ function keysFromStableIds(ids) {
   return uniqueValidKeys(ids.map((id) => rowKeyByStableId.get(id)).filter(Boolean));
 }
 
+function keysFromShareHashes(hashes) {
+  return uniqueValidKeys(hashes.map((hash) => rowKeyByShareHash.get(hash)).filter(Boolean));
+}
+
+function uniqueShareHashesForKeys(keys) {
+  return Array.from(new Set(uniqueValidKeys(keys).map((key) => courseShareHash(rowByKey.get(key)))));
+}
+
+function loadSavedSchedules() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(savedSchedulesStorageKey) || "null");
+    const items = Array.isArray(parsed?.items) ? parsed.items : Array.isArray(parsed) ? parsed : [];
+    return {
+      activeId: typeof parsed?.activeId === "string" ? parsed.activeId : "",
+      items: items
+        .filter((item) => item && typeof item.id === "string")
+        .map((item) => ({
+          id: item.id,
+          name: String(item.name || "내 시간표"),
+          updatedAt: item.updatedAt || "",
+          selectedShareHashes: parseShareHashList((item.selectedShareHashes || []).join(".")),
+          selectedStableIds: Array.isArray(item.selectedStableIds) ? item.selectedStableIds.filter(Boolean) : [],
+          selectedKeys: Array.isArray(item.selectedKeys) ? item.selectedKeys.filter(Boolean) : [],
+        })),
+    };
+  } catch {
+    return { activeId: "", items: [] };
+  }
+}
+
+function saveSavedSchedules() {
+  try {
+    savedSchedules.activeId = activeSavedId;
+    localStorage.setItem(savedSchedulesStorageKey, JSON.stringify(savedSchedules));
+  } catch {
+    showToast("브라우저 저장 공간을 사용할 수 없습니다.");
+  }
+}
+
+function loadActiveSavedId() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(scheduleStorageKey) || "null");
+    const candidate = typeof parsed?.activeSavedId === "string" ? parsed.activeSavedId : savedSchedules.activeId;
+    return savedSchedules.items.some((item) => item.id === candidate) ? candidate : "";
+  } catch {
+    return savedSchedules.items.some((item) => item.id === savedSchedules.activeId) ? savedSchedules.activeId : "";
+  }
+}
+
+function keysFromSavedSchedule(schedule) {
+  const stableKeys = keysFromStableIds(schedule?.selectedStableIds || []);
+  if (stableKeys.length) return stableKeys;
+  const exactKeys = uniqueValidKeys(schedule?.selectedKeys || []);
+  if (exactKeys.length) return exactKeys;
+  return keysFromShareHashes(schedule?.selectedShareHashes || []);
+}
+
+function createScheduleRecord(name, keys = selectedKeys) {
+  const validKeys = uniqueValidKeys(keys);
+  return {
+    id: `tt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    name: String(name || "내 시간표").trim() || "내 시간표",
+    updatedAt: new Date().toISOString(),
+    selectedShareHashes: uniqueShareHashesForKeys(validKeys),
+    selectedStableIds: validKeys.map((key) => stableCourseId(rowByKey.get(key))),
+    selectedKeys: validKeys,
+  };
+}
+
+function parseShareHashList(value) {
+  return String(value || "")
+    .split(/[.,~\s]+/)
+    .map((token) => token.trim().toLowerCase())
+    .filter((token) => /^[0-9a-z]+$/.test(token));
+}
+
+function readShareHashesFromLocation() {
+  try {
+    const url = new URL(window.location.href);
+    return parseShareHashList(url.searchParams.get(shareParamName));
+  } catch {
+    return [];
+  }
+}
+
+function removeShareParamsFromUrl() {
+  if (!window.history?.replaceState) return;
+  window.history.replaceState(null, document.title, `${window.location.origin}${window.location.pathname}`);
+}
+
 function loadSelectedKeys() {
   try {
     const parsed = JSON.parse(localStorage.getItem(scheduleStorageKey) || "null");
@@ -185,12 +336,19 @@ function loadSelectedKeys() {
       const keys = uniqueValidKeys(parsed.selectedKeys);
       if (keys.length) return keys;
     }
+    const shareKeys = keysFromShareHashes(parsed?.selectedShareHashes || []);
+    if (shareKeys.length) return shareKeys;
     if (Array.isArray(parsed)) {
       const keys = uniqueValidKeys(parsed);
       if (keys.length) return keys;
     }
   } catch {
     return loadLegacySelectedKeys();
+  }
+  const activeSchedule = savedSchedules.items.find((item) => item.id === activeSavedId);
+  if (activeSchedule) {
+    const keys = keysFromSavedSchedule(activeSchedule);
+    if (keys.length) return keys;
   }
   return loadLegacySelectedKeys();
 }
@@ -214,8 +372,10 @@ function persistScheduleState() {
     updatedAt: new Date().toISOString(),
     selectedKeys: validKeys,
     selectedStableIds: validKeys.map((key) => stableCourseId(rowByKey.get(key))),
+    selectedShareHashes: uniqueShareHashesForKeys(validKeys),
     selectedKey: selectedRow ? selectedKey : validKeys[0] || "",
     selectedStableId: selectedRow ? stableCourseId(selectedRow) : "",
+    activeSavedId,
   };
   try {
     localStorage.setItem(scheduleStorageKey, JSON.stringify(state));
@@ -446,6 +606,186 @@ function removeCourse(key) {
   renderAll();
 }
 
+function showToast(message) {
+  if (!els.toast) return;
+  window.clearTimeout(toastTimer);
+  els.toast.textContent = message;
+  els.toast.hidden = false;
+  toastTimer = window.setTimeout(() => {
+    els.toast.hidden = true;
+  }, 2200);
+}
+
+async function copyText(value) {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    const input = document.createElement("textarea");
+    input.value = value;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.append(input);
+    input.select();
+    const copied = document.execCommand("copy");
+    input.remove();
+    return copied;
+  }
+}
+
+function buildShareUrl() {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  const hashes = uniqueShareHashesForKeys(selectedKeys);
+  url.searchParams.set(shareParamName, hashes.join("."));
+  return url.toString();
+}
+
+async function shareCurrentSchedule() {
+  if (!selectedKeys.length) {
+    showToast("공유할 과목이 없습니다.");
+    return;
+  }
+  const copied = await copyText(buildShareUrl());
+  showToast(copied ? "URL이 복사되었습니다." : "URL 복사에 실패했습니다.");
+}
+
+function nextScheduleName() {
+  const used = new Set(savedSchedules.items.map((item) => item.name));
+  let index = savedSchedules.items.length + 1;
+  let name = `내 시간표 ${index}`;
+  while (used.has(name)) {
+    index += 1;
+    name = `내 시간표 ${index}`;
+  }
+  return name;
+}
+
+function saveCurrentSchedule() {
+  const existingIndex = savedSchedules.items.findIndex((item) => item.id === activeSavedId);
+  if (existingIndex === -1) {
+    const record = createScheduleRecord(nextScheduleName());
+    savedSchedules.items.unshift(record);
+    activeSavedId = record.id;
+    saveSavedSchedules();
+    persistScheduleState();
+    renderSchedule();
+    showToast("새 시간표로 저장했습니다.");
+    return;
+  }
+
+  const previous = savedSchedules.items[existingIndex];
+  savedSchedules.items[existingIndex] = {
+    ...createScheduleRecord(previous.name),
+    id: previous.id,
+  };
+  activeSavedId = previous.id;
+  saveSavedSchedules();
+  persistScheduleState();
+  renderSchedule();
+  showToast("시간표를 저장했습니다.");
+}
+
+function saveCurrentScheduleAs() {
+  const name = window.prompt("저장할 시간표 이름", nextScheduleName());
+  if (name == null) return;
+  const record = createScheduleRecord(name);
+  savedSchedules.items.unshift(record);
+  activeSavedId = record.id;
+  saveSavedSchedules();
+  persistScheduleState();
+  renderSchedule();
+  showToast("다른 이름으로 저장했습니다.");
+}
+
+function formatSavedAt(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function openLoadScheduleModal() {
+  renderSavedScheduleList();
+  els.loadModal.hidden = false;
+}
+
+function closeLoadScheduleModal() {
+  els.loadModal.hidden = true;
+}
+
+function renderSavedScheduleList() {
+  if (!savedSchedules.items.length) {
+    const empty = document.createElement("p");
+    empty.className = "savedEmpty";
+    empty.textContent = "저장된 시간표가 없습니다.";
+    els.savedScheduleList.replaceChildren(empty);
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  savedSchedules.items.forEach((schedule) => {
+    const item = document.createElement("article");
+    item.className = `savedScheduleItem${schedule.id === activeSavedId ? " active" : ""}`;
+    const info = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = schedule.name;
+    const keys = keysFromSavedSchedule(schedule);
+    const meta = document.createElement("p");
+    meta.textContent = `${keys.length}과목 · ${formatSavedAt(schedule.updatedAt) || "저장 시간 미확인"}`;
+    info.append(title, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "savedScheduleActions";
+    const load = document.createElement("button");
+    load.type = "button";
+    load.className = "ghostButton smallButton";
+    load.textContent = "불러오기";
+    load.addEventListener("click", () => loadSavedSchedule(schedule.id));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "ghostButton smallButton dangerButton";
+    remove.textContent = "삭제";
+    remove.addEventListener("click", () => deleteSavedSchedule(schedule.id));
+    actions.append(load, remove);
+    item.append(info, actions);
+    frag.append(item);
+  });
+  els.savedScheduleList.replaceChildren(frag);
+}
+
+function loadSavedSchedule(id) {
+  const schedule = savedSchedules.items.find((item) => item.id === id);
+  if (!schedule) return;
+  selectedKeys = keysFromSavedSchedule(schedule);
+  selectedKey = selectedKeys[0] || visibleRows[0]?.key || "";
+  activeSavedId = schedule.id;
+  saveSavedSchedules();
+  persistScheduleState();
+  closeLoadScheduleModal();
+  renderAll();
+  showToast("저장된 시간표를 불러왔습니다.");
+}
+
+function deleteSavedSchedule(id) {
+  const schedule = savedSchedules.items.find((item) => item.id === id);
+  if (!schedule || !window.confirm(`'${schedule.name}' 시간표를 삭제할까요?`)) return;
+  savedSchedules.items = savedSchedules.items.filter((item) => item.id !== id);
+  if (activeSavedId === id) activeSavedId = "";
+  saveSavedSchedules();
+  persistScheduleState();
+  renderSavedScheduleList();
+  renderSchedule();
+}
+
 function parseMinute(value) {
   const match = /(\d{2}):(\d{2})/.exec(value || "");
   if (!match) return null;
@@ -571,7 +911,10 @@ function renderSelectedList(items, conflicts) {
   els.selectedCount.textContent = items.length.toLocaleString("ko-KR");
   els.creditCount.textContent = credits.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
   els.conflictCount.textContent = conflicts.size.toLocaleString("ko-KR");
-  els.selectedNote.textContent = items.length ? `${items.length}개 선택` : "비어 있음";
+  const activeSchedule = savedSchedules.items.find((item) => item.id === activeSavedId);
+  els.selectedNote.textContent = items.length
+    ? `${items.length}개 선택${activeSchedule ? ` · ${activeSchedule.name}` : ""}`
+    : activeSchedule ? activeSchedule.name : "비어 있음";
   els.conflictBanner.hidden = conflicts.size === 0;
 
   if (!items.length) {
