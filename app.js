@@ -624,8 +624,14 @@ function renderResults() {
     }
     const meta = document.createElement("p");
     meta.className = "courseMeta";
-    meta.textContent = `${row.category} · ${row.grade} · ${row.department || "학과 미지정"} · ${row.courseCode}-${row.section} · ${row.professor || "교수 미지정"}`;
-    meta.title = meta.textContent;
+    meta.textContent = [
+      row.category,
+      row.grade,
+      row.department || "학과 미지정",
+      row.professor || "교수 미지정",
+      `${row.courseCode}-${row.section}`,
+    ].join(" · ");
+    meta.title = `${row.category} · ${row.grade} · ${row.department || "학과 미지정"} · ${row.professor || "교수 미지정"} · ${row.courseCode}-${row.section}`;
     titleWrap.append(titleLine, meta);
 
     const add = document.createElement("button");
