@@ -1041,6 +1041,12 @@ input[type="radio"] {
   line-height: 1.38;
 }
 
+.detailList dd.detailText {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

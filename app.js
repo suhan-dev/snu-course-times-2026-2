@@ -1143,10 +1143,11 @@ function roomLine(row) {
   return room ? `${schedule} · ${room}` : schedule;
 }
 
-function detailRow(label, value, badge = false) {
+function detailRow(label, value, badge = false, extraClass = "") {
   const dt = document.createElement("dt");
   dt.textContent = label;
   const dd = document.createElement("dd");
+  if (extraClass) dd.className = extraClass;
   if (badge && value) {
     const span = document.createElement("span");
     span.className = "badge";
@@ -1179,8 +1180,11 @@ function renderDetail(row) {
     ...detailRow("담당교수", row.professor),
     ...detailRow("학점", row.credits),
     ...detailRow("수강신청인원/정원", row.enrollmentCapacity),
-    ...detailRow("시간 출처", row.scheduleSource),
   );
+  if (row.registrationRestriction) detailRows.push(...detailRow("수강 가능/제한", row.registrationRestriction, false, "detailText"));
+  if (row.registrationTargets) detailRows.push(...detailRow("수강반 지정", row.registrationTargets, false, "detailText"));
+  if (row.registrationNote) detailRows.push(...detailRow("수강신청 비고", row.registrationNote, false, "detailText"));
+  detailRows.push(...detailRow("시간 출처", row.scheduleSource));
   if (row.roomSource) detailRows.push(...detailRow("강의실 출처", row.roomSource));
   const flags = filteredFlags(row);
   if (flags) detailRows.push(...detailRow("특이사항", flags));
