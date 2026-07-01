@@ -644,7 +644,7 @@ function renderResults() {
 
     const time = document.createElement("p");
     time.className = "courseTime";
-    time.textContent = row.schedule || "시간 미공개";
+    time.textContent = roomLine(row);
     time.title = time.textContent;
 
     card.append(header, time);
@@ -1041,8 +1041,11 @@ function renderSchedule() {
       el.style.background = rgbaColor(color, 0.13);
       el.style.borderColor = color;
       el.style.color = mixWithInk(color);
-      el.title = `${row.courseName} ${row.section} · ${row.professor || "교수 미지정"} · ${block.label}`;
-      el.setAttribute("aria-label", `${row.courseName} ${row.section} · ${row.professor || "교수 미지정"} · ${block.label}`);
+      const blockDescription = [row.courseName, row.section, row.professor || "교수 미지정", block.label, roomText(row)]
+        .filter(Boolean)
+        .join(" · ");
+      el.title = blockDescription;
+      el.setAttribute("aria-label", blockDescription);
       const title = `<strong>${escapeHtml(row.courseName)}</strong><span class="professorName">${escapeHtml(row.professor || "교수 미지정")}</span>`;
       el.innerHTML = title;
       el.addEventListener("click", () => {
@@ -1083,7 +1086,12 @@ function renderSelectedList(items, conflicts) {
     const title = document.createElement("h3");
     title.textContent = row.courseName;
     const info = document.createElement("p");
-    info.textContent = `${row.courseCode}-${row.section} · ${row.professor || "교수 미지정"} · ${row.schedule || "시간 미공개"}`;
+    info.textContent = [
+      `${row.courseCode}-${row.section}`,
+      row.professor || "교수 미지정",
+      row.schedule || "시간 미공개",
+      roomText(row),
+    ].filter(Boolean).join(" · ");
     const remove = document.createElement("button");
     remove.className = "removeButton";
     remove.type = "button";
@@ -1119,6 +1127,16 @@ function filteredFlags(row) {
     .join(", ");
 }
 
+function roomText(row) {
+  return row.lectureRoom || row.scheduleRoom || "";
+}
+
+function roomLine(row) {
+  const schedule = row.schedule || "시간 미공개";
+  const room = roomText(row);
+  return room ? `${schedule} · ${room}` : schedule;
+}
+
 function detailRow(label, value, badge = false) {
   const dt = document.createElement("dt");
   dt.textContent = label;
@@ -1145,6 +1163,8 @@ function renderDetail(row) {
   const detailRows = [
     ...detailRow("시간표", row.schedule || "시간 미공개", Boolean(row.schedule)),
   ];
+  if (roomText(row)) detailRows.push(...detailRow("강의실", roomText(row)));
+  if (row.scheduleRoom && row.scheduleRoom !== row.lectureRoom) detailRows.push(...detailRow("시간-강의실", row.scheduleRoom));
   if (row.timeSlots) detailRows.push(...detailRow("필터 기준 시간대", row.timeSlots));
   detailRows.push(
     ...detailRow("과목번호", `${row.courseCode} / ${row.section}`),
@@ -1155,6 +1175,7 @@ function renderDetail(row) {
     ...detailRow("수강신청인원/정원", row.enrollmentCapacity),
     ...detailRow("시간 출처", row.scheduleSource),
   );
+  if (row.roomSource) detailRows.push(...detailRow("강의실 출처", row.roomSource));
   const flags = filteredFlags(row);
   if (flags) detailRows.push(...detailRow("특이사항", flags));
   els.detailList.replaceChildren(
@@ -1321,11 +1342,16 @@ function downloadTimetableImage() {
       ctx.fillStyle = mixWithInk(color);
       ctx.textAlign = "center";
       ctx.font = "800 24px system-ui, -apple-system, sans-serif";
-      const textY = y + Math.max(34, h / 2 - 13);
-      wrapCanvasText(ctx, row.courseName, x + w / 2, textY, w - 32, 30, h < 70 ? 1 : 2);
+      const textY = y + Math.max(34, h >= 110 ? h / 2 - 36 : h / 2 - 13);
+      const titleHeight = wrapCanvasText(ctx, row.courseName, x + w / 2, textY, w - 32, 30, h < 70 ? 1 : 2);
       if (h >= 70) {
         ctx.font = "700 18px system-ui, -apple-system, sans-serif";
-        ctx.fillText(row.professor || "교수 미지정", x + w / 2, Math.min(y + h - 22, textY + 54));
+        const professorY = Math.min(y + h - (row.lectureRoom && h >= 110 ? 42 : 22), textY + titleHeight + 24);
+        ctx.fillText(row.professor || "교수 미지정", x + w / 2, professorY);
+        if (row.lectureRoom && h >= 110) {
+          ctx.font = "700 16px system-ui, -apple-system, sans-serif";
+          wrapCanvasText(ctx, row.lectureRoom, x + w / 2, Math.min(y + h - 18, professorY + 22), w - 34, 20, 1);
+        }
       }
     });
   });
