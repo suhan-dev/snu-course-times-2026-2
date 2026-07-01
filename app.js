@@ -71,9 +71,12 @@ const els = {
 
 const rowByKey = new Map(rows.map((row) => [row.key, row]));
 const rowOrder = new Map(rows.map((row, index) => [row.key, index]));
-const rowKeyByStableId = new Map(rows.map((row) => [stableCourseId(row), row.key]));
+const rowKeyByStableId = new Map();
 const rowKeyByShareHash = new Map();
 rows.forEach((row) => {
+  [stableCourseId(row), legacyStableCourseId(row)].forEach((id) => {
+    if (id && !rowKeyByStableId.has(id)) rowKeyByStableId.set(id, row.key);
+  });
   const hash = courseShareHash(row);
   if (!rowKeyByShareHash.has(hash)) rowKeyByShareHash.set(hash, row.key);
 });
@@ -211,6 +214,10 @@ function applyTheme(theme, persist = false) {
 }
 
 function stableCourseId(row) {
+  return [row.courseCode, row.section].map((part) => String(part || "")).join("|");
+}
+
+function legacyStableCourseId(row) {
   return [row.category, row.courseCode, row.section].map((part) => String(part || "")).join("|");
 }
 
@@ -250,8 +257,17 @@ function uniqueValidKeys(keys) {
   });
 }
 
+function keyFromStableId(id) {
+  const value = String(id || "");
+  const directKey = rowKeyByStableId.get(value);
+  if (directKey) return directKey;
+  const parts = value.split("|");
+  if (parts.length >= 3) return rowKeyByStableId.get(parts.slice(-2).join("|")) || "";
+  return "";
+}
+
 function keysFromStableIds(ids) {
-  return uniqueValidKeys(ids.map((id) => rowKeyByStableId.get(id)).filter(Boolean));
+  return uniqueValidKeys(ids.map(keyFromStableId).filter(Boolean));
 }
 
 function keysFromShareHashes(hashes) {
@@ -304,11 +320,11 @@ function loadActiveSavedId() {
 }
 
 function keysFromSavedSchedule(schedule) {
-  const stableKeys = keysFromStableIds(schedule?.selectedStableIds || []);
-  if (stableKeys.length) return stableKeys;
-  const exactKeys = uniqueValidKeys(schedule?.selectedKeys || []);
-  if (exactKeys.length) return exactKeys;
-  return keysFromShareHashes(schedule?.selectedShareHashes || []);
+  return uniqueValidKeys([
+    ...keysFromStableIds(schedule?.selectedStableIds || []),
+    ...uniqueValidKeys(schedule?.selectedKeys || []),
+    ...keysFromShareHashes(schedule?.selectedShareHashes || []),
+  ]);
 }
 
 function createScheduleRecord(name, keys = selectedKeys) {
@@ -400,16 +416,8 @@ function removeShareParamsFromUrl() {
 function loadSelectedKeys() {
   try {
     const parsed = JSON.parse(localStorage.getItem(scheduleStorageKey) || "null");
-    if (Array.isArray(parsed?.selectedStableIds)) {
-      const keys = keysFromStableIds(parsed.selectedStableIds);
-      if (keys.length) return keys;
-    }
-    if (Array.isArray(parsed?.selectedKeys)) {
-      const keys = uniqueValidKeys(parsed.selectedKeys);
-      if (keys.length) return keys;
-    }
-    const shareKeys = keysFromShareHashes(parsed?.selectedShareHashes || []);
-    if (shareKeys.length) return shareKeys;
+    const storedKeys = keysFromSavedSchedule(parsed);
+    if (storedKeys.length) return storedKeys;
     if (Array.isArray(parsed)) {
       const keys = uniqueValidKeys(parsed);
       if (keys.length) return keys;
